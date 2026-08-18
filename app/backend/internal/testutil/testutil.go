@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"database/sql"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -10,12 +11,19 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
 	"sakuravel/internal/handler"
 	"sakuravel/internal/middleware"
 	"sakuravel/internal/realtime"
 	"sakuravel/internal/server"
+
+	_ "github.com/go-sql-driver/mysql"
 )
+
+func CloseBody(resp *http.Response) {
+	if resp != nil && resp.Body != nil {
+		_ = resp.Body.Close()
+	}
+}
 
 func SetupTestDB(t *testing.T) *sql.DB {
 	t.Helper()

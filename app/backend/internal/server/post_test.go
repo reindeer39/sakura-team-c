@@ -24,7 +24,7 @@ func loginHelper(t *testing.T, baseURL string, client *http.Client, username, em
 	if err != nil {
 		t.Fatalf("failed to register user: %v", err)
 	}
-	defer resp.Body.Close()
+	defer testutil.CloseBody(resp)
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("expected 201 Created from register, got %d", resp.StatusCode)
 	}
@@ -48,7 +48,7 @@ func TestPost_CreateAndTimeline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create post: %v", err)
 	}
-	defer createResp.Body.Close()
+	defer testutil.CloseBody(createResp)
 
 	if createResp.StatusCode != http.StatusCreated {
 		t.Fatalf("expected 201 Created, got %d", createResp.StatusCode)
@@ -72,7 +72,7 @@ func TestPost_CreateAndTimeline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get timeline: %v", err)
 	}
-	defer timelineResp.Body.Close()
+	defer testutil.CloseBody(timelineResp)
 
 	if timelineResp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200 OK from timeline, got %d", timelineResp.StatusCode)
@@ -107,7 +107,7 @@ func TestPost_LikeFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create post: %v", err)
 	}
-	defer createResp.Body.Close()
+	defer testutil.CloseBody(createResp)
 
 	var createdResult struct {
 		Post struct {
@@ -124,7 +124,7 @@ func TestPost_LikeFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to like post: %v", err)
 	}
-	defer likeResp.Body.Close()
+	defer testutil.CloseBody(likeResp)
 	if likeResp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200 OK from like, got %d", likeResp.StatusCode)
 	}
@@ -138,7 +138,7 @@ func TestPost_LikeFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to unlike post: %v", err)
 	}
-	defer unlikeResp.Body.Close()
+	defer testutil.CloseBody(unlikeResp)
 	if unlikeResp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200 OK from unlike, got %d", unlikeResp.StatusCode)
 	}

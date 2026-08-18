@@ -33,7 +33,7 @@ func TestAuth_RegisterAndLoginFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to register: %v", err)
 	}
-	defer resp.Body.Close()
+	defer testutil.CloseBody(resp)
 
 	if resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
@@ -45,7 +45,7 @@ func TestAuth_RegisterAndLoginFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get /me: %v", err)
 	}
-	defer meResp.Body.Close()
+	defer testutil.CloseBody(meResp)
 
 	if meResp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status 200 for /me, got %d", meResp.StatusCode)
@@ -69,7 +69,7 @@ func TestAuth_RegisterAndLoginFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to logout: %v", err)
 	}
-	defer logoutResp.Body.Close()
+	defer testutil.CloseBody(logoutResp)
 
 	if logoutResp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status 200 for logout, got %d", logoutResp.StatusCode)
@@ -80,7 +80,7 @@ func TestAuth_RegisterAndLoginFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get /me after logout: %v", err)
 	}
-	defer afterLogoutResp.Body.Close()
+	defer testutil.CloseBody(afterLogoutResp)
 
 	if afterLogoutResp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("expected status 401 for /me after logout, got %d", afterLogoutResp.StatusCode)
@@ -96,7 +96,7 @@ func TestAuth_RegisterAndLoginFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to login: %v", err)
 	}
-	defer loginResp.Body.Close()
+	defer testutil.CloseBody(loginResp)
 
 	if loginResp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status 200 for login, got %d", loginResp.StatusCode)
@@ -107,7 +107,7 @@ func TestAuth_RegisterAndLoginFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get /me after re-login: %v", err)
 	}
-	defer reMeResp.Body.Close()
+	defer testutil.CloseBody(reMeResp)
 	if reMeResp.StatusCode != http.StatusOK {
 		t.Fatalf("expected status 200 for /me after re-login, got %d", reMeResp.StatusCode)
 	}
@@ -130,7 +130,7 @@ func TestAuth_InvalidScenarios(t *testing.T) {
 		if err != nil {
 			t.Fatalf("register 1 failed: %v", err)
 		}
-		resp1.Body.Close()
+		testutil.CloseBody(resp1)
 		if resp1.StatusCode != http.StatusCreated {
 			t.Fatalf("expected 201, got %d", resp1.StatusCode)
 		}
@@ -140,7 +140,7 @@ func TestAuth_InvalidScenarios(t *testing.T) {
 		if err != nil {
 			t.Fatalf("register 2 failed: %v", err)
 		}
-		defer resp2.Body.Close()
+		defer testutil.CloseBody(resp2)
 		if resp2.StatusCode != http.StatusConflict {
 			t.Errorf("expected 409 Conflict for duplicate registration, got %d", resp2.StatusCode)
 		}
@@ -156,7 +156,7 @@ func TestAuth_InvalidScenarios(t *testing.T) {
 		if err != nil {
 			t.Fatalf("login failed: %v", err)
 		}
-		defer resp.Body.Close()
+		defer testutil.CloseBody(resp)
 		if resp.StatusCode != http.StatusUnauthorized {
 			t.Errorf("expected 401 Unauthorized, got %d", resp.StatusCode)
 		}
@@ -167,7 +167,7 @@ func TestAuth_InvalidScenarios(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GET /me failed: %v", err)
 		}
-		defer resp.Body.Close()
+		defer testutil.CloseBody(resp)
 		if resp.StatusCode != http.StatusUnauthorized {
 			t.Errorf("expected 401 Unauthorized for unauthenticated /me, got %d", resp.StatusCode)
 		}
