@@ -30,16 +30,28 @@ services:
       retries: 5
 
   frontend:
-    image: <作成したコンテナレジストリのホスト名>/intern2026-app-frontend:latest
+    image: sakura-intern8.sakuracr.jp/intern2026-app-frontend:latest
     platform: linux/amd64
     ports:
       - "3000:3000"
     depends_on:
       - api
     restart: on-failure
+  
+  caddy:
+    image: caddy:2.8.5
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - api
+      - frontend
 
 volumes:
   mariadb_data:
+  caddy_data:
 
 networks:
   default:

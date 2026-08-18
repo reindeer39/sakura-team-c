@@ -1,15 +1,15 @@
 services:
   api:
-    image: <作成したコンテナレジストリのホスト名>/intern2026-app-backend:latest
+    image: sakura-intern8.sakuracr.jp/intern2026-app-backend:latest
     platform: linux/amd64
-    ports:
-      - "8080:8080"
+    # ports:
+    #   - "8080:8080"
     environment:
       - DATABASE_URL=sakuravel:password@tcp(db:3306)/sakuravel?parseTime=true&charset=utf8mb4
       - PORT=8080
-      # フロントが別オリジンになる場合に指定（未指定だと http://localhost:3000 のみ許可）
-      # - ALLOWED_ORIGIN=http://203.0.113.10:3000
-      # - COOKIE_SECURE=true   # HTTPS 配信時
+      # ブラウザから見たフロントエンドのオリジン（Caddy 経由で同一オリジン）
+      - ALLOWED_ORIGIN=https://teamc.intern28.sakuraha.jp
+      - COOKIE_SECURE=true   # HTTPS 配信時
     depends_on:
       db:
         condition: service_healthy
@@ -22,8 +22,8 @@ services:
       MYSQL_USER: sakuravel
       MYSQL_PASSWORD: password
       MYSQL_ROOT_PASSWORD: password
-    ports:
-      - "3306:3306"
+    # ports:
+    #   - "3306:3306"
     volumes:
       - ./migrations:/docker-entrypoint-initdb.d/
       - mariadb_data:/var/lib/mysql
@@ -34,20 +34,33 @@ services:
       retries: 5
 
   frontend:
-    image: <作成したコンテナレジストリのホスト名>/intern2026-app-frontend:latest
+    image: sakura-intern8.sakuracr.jp/intern2026-app-frontend:latest
     platform: linux/amd64
-    ports:
-      - "3000:3000"
+    # ports:
+    #   - "3000:3000"
     environment:
-      # ブラウザから直接叩くURL。デプロイ先ではドメイン名やグローバルIPに変更する
-      # （例: http://203.0.113.10:8080）
-      - API_URL=http://localhost:8080
+      # ブラウザから直接叩くバックエンドURL。/api/config 経由でブラウザに渡される
+      - API_URL=https://teamc.intern28.sakuraha.jp/api
     depends_on:
       - api
     restart: on-failure
 
+  caddy:
+    image: caddy:2.11.4
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - frontend
+
 volumes:
   mariadb_data:
+  caddy_data:
+  caddy_config:
 
 networks:
   default:
