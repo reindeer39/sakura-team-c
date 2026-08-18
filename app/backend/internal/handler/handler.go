@@ -442,7 +442,7 @@ func (h *Handler) fetchPostsInBatch(r *http.Request, ids []int64, viewerID int64
 		if err != nil {
 			return nil, err
 		}
-		userCache := make(map[int64]model.User)
+		//userCache := make(map[int64]model.User)
 
 		posts = append(posts, p)
 	}
@@ -450,7 +450,7 @@ func (h *Handler) fetchPostsInBatch(r *http.Request, ids []int64, viewerID int64
 		return nil, err
 	}
 
-	return p, nil
+	return posts, nil
 }
 
 // maxThreadDepth はスレッドを辿る深さの上限（循環や極端に深いスレッドの保険）。
