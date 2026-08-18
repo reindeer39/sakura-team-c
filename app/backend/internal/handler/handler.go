@@ -124,11 +124,42 @@ func (h *Handler) fetchUsersInBatch(r *http.Request, userIDs []int64) (map[int64
 
 	    u.AvatarColor = model.AvatarColor(u.ID)
 
-	    users[u.ID] = u
+		
+		users[u.ID] = u
 	}
 	if err := rows.Err(); err != nil {
 	    return nil, err
 	}
+
+	followerCounts, err := h.fetchFollowerCountsInBatch(r, userIDs)
+	if err != nil {
+	    return nil, err
+	}
+
+	followingCounts, err := h.fetchFollowingCountsInBatch(r, userIDs)
+	if err != nil {
+	    return nil, err
+	}
+
+	postCounts, err := h.fetchPostCountsInBatch(r, userIDs)
+	if err != nil {
+	    return nil, err
+	}
+
+	followedByMe, err := h.fetchFollowedByMeInBatch(r, userIDs)
+	if err != nil {
+	    return nil, err
+	}
+
+	for userID, u := range users {
+    	u.FollowersCount = followerCounts[userID]
+    	u.FollowingCount = followingCounts[userID]
+    	u.PostCount = postCounts[userID]
+    	u.FollowedByMe = followedByMe[userID]
+
+    	users[userID] = u
+	}
+	
 	return users, nil
 }
 
@@ -291,7 +322,7 @@ func (h *Handler) fetchFollowedByMeInBatch(r *http.Request, users []int64) (map[
     for rows.Next() {
         var userID int64
 
-        if err := rows.Scan(&userID, &count); err != nil {
+        if err := rows.Scan(&userID); err != nil {
             return nil, err
         }
 
@@ -301,6 +332,7 @@ func (h *Handler) fetchFollowedByMeInBatch(r *http.Request, users []int64) (map[
     if err := rows.Err(); err != nil {
         return nil, err
     }
+	return followed, nil
 }
 
 // fetchPost は posts テーブルから1件取得し、関連データを付加する
