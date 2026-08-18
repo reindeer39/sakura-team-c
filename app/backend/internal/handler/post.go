@@ -162,17 +162,17 @@ func (h *Handler) GetUserPosts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	posts := make([]any, 0, len(ids))
-	p , err := h.fetchPostsInBatch(r, ids, viewerID)
+	/*p , err := h.fetchPostsInBatch(r, ids, viewerID)
 	if err == nil {
 		posts = append(posts, p)
 	}
-	posts = append(posts, p)
-	/*for _, id := range ids {
+	posts = append(posts, p)*/
+	for _, id := range ids {
 		p, err := h.fetchPost(r, id, viewerID)
 		if err == nil {
 			posts = append(posts, p)
 		}
-	}*/
+	}
 
 	var total int
 	h.DB.QueryRowContext(r.Context(),
