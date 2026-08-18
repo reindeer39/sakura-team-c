@@ -133,7 +133,7 @@ func (h *Handler) fetchUsersInBatch(r *http.Request, userIDs []int64) (map[int64
 	}
 
 	if err := rows.Close(); err != nil {
-	    return nil, err
+		return nil, err
 	}
 
 	followerCounts, err := h.fetchFollowerCountsInBatch(r, userIDs)
@@ -411,10 +411,10 @@ func (h *Handler) fetchPostsInBatch(r *http.Request, ids []int64, viewerID int64
 		return nil, nil
 	}
 	var posts []model.Post
-	
+
 	postUserIDs := make(map[int64]int64)
 	var userIDs []int64
-	
+
 	placeholders := make([]string, len(ids))
 	args := make([]any, len(ids))
 
@@ -436,58 +436,58 @@ func (h *Handler) fetchPostsInBatch(r *http.Request, ids []int64, viewerID int64
 	defer rows.Close()
 
 	for rows.Next() {
-	    var p model.Post
-	    var userID int64
+		var p model.Post
+		var userID int64
 
-	    if err := rows.Scan(
-	        &p.ID,
-	        &userID,
-	        &p.Content,
-	        &p.IsRepost,
-	        &p.OriginalPostID,
-	        &p.ParentPostID,
-	        &p.CreatedAt,
-	    ); err != nil {
-	        return nil, err
-	    }
+		if err := rows.Scan(
+			&p.ID,
+			&userID,
+			&p.Content,
+			&p.IsRepost,
+			&p.OriginalPostID,
+			&p.ParentPostID,
+			&p.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
 
-	    postUserIDs[p.ID] = userID
-	    userIDs = append(userIDs, userID)
+		postUserIDs[p.ID] = userID
+		userIDs = append(userIDs, userID)
 
-	    posts = append(posts, p)
+		posts = append(posts, p)
 	}
 
 	if err := rows.Err(); err != nil {
-	    return nil, err
+		return nil, err
 	}
 
 	if err := rows.Close(); err != nil {
-	    return nil, err
+		return nil, err
 	}
 
 	authors, err := h.fetchUsersInBatch(r, userIDs)
 	if err != nil {
-	    return nil, err
+		return nil, err
 	}
-	
+
 	likeCounts, err := h.fetchLikeCountsInBatch(r, ids)
 	if err != nil {
-	    return nil, err
+		return nil, err
 	}
-	
+
 	repostCounts, err := h.fetchRepostsCountsInBatch(r, ids)
 	if err != nil {
-	    return nil, err
+		return nil, err
 	}
 
 	for i := range posts {
-	    p := &posts[i]
+		p := &posts[i]
 
-	    userID := postUserIDs[p.ID]
+		userID := postUserIDs[p.ID]
 
-	    p.Author = authors[userID]
-	    p.LikesCount = likeCounts[p.ID]
-	    p.RepostsCount = repostCounts[p.ID]
+		p.Author = authors[userID]
+		p.LikesCount = likeCounts[p.ID]
+		p.RepostsCount = repostCounts[p.ID]
 	}
 
 	return posts, nil
@@ -520,7 +520,7 @@ func (h *Handler) fetchLikeCountsInBatch(r *http.Request, postIDs []int64) (map[
 		var count int
 
 		if err := rows.Scan(&postID, &count); err != nil {
-		    return nil, err
+			return nil, err
 		}
 
 		counts[postID] = count
@@ -534,7 +534,7 @@ func (h *Handler) fetchLikeCountsInBatch(r *http.Request, postIDs []int64) (map[
 }
 
 // fetchRepostsCountsInbatch は posts テーブルから任意件取得し、関連データを付加する
-func (h *Handler) fetchRepostsCountsInBatch(r *http.Request, postIDs  []int64) (map[int64]int, error) {
+func (h *Handler) fetchRepostsCountsInBatch(r *http.Request, postIDs []int64) (map[int64]int, error) {
 	counts := make(map[int64]int)
 	if len(postIDs) == 0 {
 		return counts, nil
