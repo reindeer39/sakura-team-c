@@ -50,6 +50,12 @@ variable "server_ssh_public_key_path" {
   default     = ""
 }
 
+variable "server_ssh_port" {
+  description = "サーバーへの SSH 接続に使用するポート番号"
+  type        = number
+  default     = 22222
+}
+
 ########################################
 # データベースアプライアンス
 ########################################

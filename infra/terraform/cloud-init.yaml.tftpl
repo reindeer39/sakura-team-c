@@ -2,6 +2,7 @@
 hostname: ${hostname}
 manage_etc_hosts: true
 password: ${password}
+ssh_port: ${ssh_port}
 chpasswd:
   expire: false
 ssh_pwauth: true
@@ -14,6 +15,13 @@ package_update: true
 package_upgrade: true
 
 write_files:
+  - path: /etc/ssh/sshd_config.d/99-ssh_port.conf
+    permissions: '0644'
+    content: |
+      Port ${ssh_port}
+      PasswordAuthentication no
+      PermitRootLogin no
+
   - path: /usr/local/bin/configure-private-nic.sh
     permissions: '0755'
     content: |
@@ -45,4 +53,10 @@ runcmd:
   # Docker EngineとCompose V2インストール
   - curl -fsSL https://get.docker.com | sh
   - systemctl enable --now docker
-  - usermod -a -G docker ubuntu
+  - usermod -a -G docker ubuntu  
+  - [ ufw, allow, "${ssh_port}/tcp" ]
+  - [ ufw, allow, "80/tcp" ]
+  - [ ufw, allow, "443/tcp" ]
+  - [ ufw, --force, enable ]
+  - [ systemctl, daemon-reload ]
+  - [ systemctl, restart, ssh.socket ]

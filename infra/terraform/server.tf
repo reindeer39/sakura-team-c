@@ -32,6 +32,7 @@ resource "sakura_server" "docker_host" {
     password          = var.server_password
     ssh_public_key    = var.server_ssh_public_key_path != "" ? file(pathexpand(var.server_ssh_public_key_path)) : ""
     private_ip_cidr   = var.server_private_net_cidr
+    ssh_port          = var.server_ssh_port
   })
 }
 
