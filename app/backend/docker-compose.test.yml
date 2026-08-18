@@ -9,7 +9,6 @@ services:
     ports:
       - "3307:3306"
     volumes:
-      - ./migrations:/docker-entrypoint-initdb.d/
       - mariadb_data_test:/var/lib/mysql
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -u sakuravel -ppassword"]
