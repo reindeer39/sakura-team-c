@@ -151,7 +151,7 @@ func (h *Handler) fetchPost(r *http.Request, postID, viewerID int64) (model.Post
 // fetchPostsInBatch は posts テーブルから任意件取得し、関連データを付加する
 func (h *Handler) fetchPostsInBatch(r *http.Request, ids []int64 , viewerID int64) ([]model.Post, error) {
 	if len(ids) == 0 {
-    	return posts, nil
+    	return nil, nil
 	}
 	var posts []model.Post
 	placeholders := make([]string, len(ids))
@@ -174,55 +174,31 @@ func (h *Handler) fetchPostsInBatch(r *http.Request, ids []int64 , viewerID int6
 	}
 	defer rows.Close()
 
-	author, err := h.fetchUser(r, userID)
-	if err != nil {
-		return p, err
+	for rows.Next() {
+    	var p model.Post
+    	var userID int64
+
+    	err := rows.Scan(
+    	    &p.ID,
+    	    &userID,
+    	    &p.Content,
+    	    &p.IsRepost,
+    	    &p.OriginalPostID,
+    	    &p.ParentPostID,
+    	    &p.CreatedAt,
+    	)
+    	if err != nil {
+    	    return nil, err
+    	}
+		userCache := make(map[int64]model.User)
+		
+    	posts = append(posts, p)
 	}
-	p.Author = author
-
-	h.DB.QueryRowContext(r.Context(),
-		`SELECT COUNT(*) FROM likes WHERE post_id = ?`, p.ID,
-	).Scan(&p.LikesCount)
-
-	h.DB.QueryRowContext(r.Context(),
-		`SELECT COUNT(*) FROM reposts WHERE post_id = ?`, p.ID,
-	).Scan(&p.RepostsCount)
-
-	p.RepliesCount = h.countReplies(r, p.ID, 0)
-
-	if viewerID > 0 {
-		h.DB.QueryRowContext(r.Context(),
-			`SELECT EXISTS(SELECT 1 FROM likes WHERE user_id = ? AND post_id = ?)`,
-			viewerID, p.ID,
-		).Scan(&p.LikedByMe)
-
-		h.DB.QueryRowContext(r.Context(),
-			`SELECT EXISTS(SELECT 1 FROM reposts WHERE user_id = ? AND post_id = ?)`,
-			viewerID, p.ID,
-		).Scan(&p.RepostedByMe)
+	if err := rows.Err(); err != nil {
+	    return nil, err
 	}
-
-	// 返信の場合、返信先の投稿者を解決する
-	if p.ParentPostID != nil {
-		var username, displayName string
-		err := h.DB.QueryRowContext(r.Context(), `
-			SELECT u.username, u.display_name
-			FROM posts parent JOIN users u ON u.id = parent.user_id
-			WHERE parent.id = ?
-		`, *p.ParentPostID).Scan(&username, &displayName)
-		if err == nil {
-			p.ReplyToUsername = &username
-			p.ReplyToDisplayName = &displayName
-		}
-	}
-
-	// リポストの場合、何をリポストしたか分かるように元投稿を解決する
-	if p.IsRepost && p.OriginalPostID != nil && *p.OriginalPostID != p.ID {
-		if original, err := h.fetchPost(r, *p.OriginalPostID, viewerID); err == nil {
-			p.OriginalPost = &original
-		}
-	}
-
+	
+	
 	return p, nil
 }
 
