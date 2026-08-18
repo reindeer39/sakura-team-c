@@ -21,6 +21,9 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  DEPLOY_PORT: "22222"
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -72,7 +75,7 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
         run: |
-          ssh -i ~/.ssh/deploy_key \
+          ssh -p "$DEPLOY_PORT" -i ~/.ssh/deploy_key \
             "${DEPLOY_USER}@${DEPLOY_HOST}" \
             "mkdir -p /opt/sakuravel"
 
@@ -81,7 +84,7 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
         run: |
-          scp -i ~/.ssh/deploy_key \
+          scp -P "$DEPLOY_PORT" -i ~/.ssh/deploy_key \
             deploy/deploy.sh \
             "${DEPLOY_USER}@${DEPLOY_HOST}:/opt/sakuravel/deploy.sh"
 
@@ -94,7 +97,7 @@ jobs:
           REGISTRY_PASSWORD: ${{ secrets.SAKURA_REGISTRY_PASSWORD }}
         run: |
           printf '%s' "$REGISTRY_PASSWORD" |
-            ssh -i ~/.ssh/deploy_key \
+            ssh -p "$DEPLOY_PORT" -i ~/.ssh/deploy_key \
               "${DEPLOY_USER}@${DEPLOY_HOST}" \
               "docker login '${REGISTRY_HOST}' \
                 --username '${REGISTRY_USERNAME}' \
@@ -105,7 +108,7 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
         run: |
-          ssh -i ~/.ssh/deploy_key \
+          ssh -p "$DEPLOY_PORT" -i ~/.ssh/deploy_key \
             "${DEPLOY_USER}@${DEPLOY_HOST}" \
             "chmod +x /opt/sakuravel/deploy.sh && \
              /opt/sakuravel/deploy.sh '${IMAGE_NAME}:${GITHUB_SHA}'"
