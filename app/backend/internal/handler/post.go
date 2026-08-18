@@ -64,12 +64,16 @@ func (h *Handler) GetTimeline(w http.ResponseWriter, r *http.Request) {
 		rawPosts = append(rawPosts, p)
 	}
 
-	posts := make([]any, 0, len(rawPosts))
+	ids := make([]int64, 0, len(rawPosts))
+
 	for _, rp := range rawPosts {
-		p, err := h.fetchPost(r, rp.id, myID)
-		if err == nil {
-			posts = append(posts, p)
-		}
+	    ids = append(ids, rp.id)
+	}
+
+	posts, err := h.fetchPostsInBatch(r, ids, myID)
+	if err != nil {
+	    h.respondError(w, http.StatusInternalServerError, "server error")
+	    return
 	}
 
 	var total int
@@ -161,17 +165,10 @@ func (h *Handler) GetUserPosts(w http.ResponseWriter, r *http.Request) {
 		ids = append(ids, id)
 	}
 
-	posts := make([]any, 0, len(ids))
-	/*p , err := h.fetchPostsInBatch(r, ids, viewerID)
-	if err == nil {
-		posts = append(posts, p)
-	}
-	posts = append(posts, p)*/
-	for _, id := range ids {
-		p, err := h.fetchPost(r, id, viewerID)
-		if err == nil {
-			posts = append(posts, p)
-		}
+	posts, err := h.fetchPostsInBatch(r, ids, viewerID)
+	if err != nil {
+	    h.respondError(w, http.StatusInternalServerError, "server error")
+	    return
 	}
 
 	var total int
