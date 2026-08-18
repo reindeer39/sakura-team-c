@@ -17,7 +17,7 @@ func recordFootprint(h *Handler, r *http.Request, userID, visitorID int64) {
 func (h *Handler) GetFootprints(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.currentUserID(r)
 	if !ok {
-		h.respondError(w, http.StatusUnauthorized, "unauthorized")
+		h.respondErrorWithErr(r, w, http.StatusUnauthorized, "unauthorized", nil)
 		return
 	}
 	page, perPage, offset := h.pagination(r)
@@ -31,7 +31,7 @@ func (h *Handler) GetFootprints(w http.ResponseWriter, r *http.Request) {
 		LIMIT ? OFFSET ?
 	`, userID, perPage, offset)
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "server error")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err)
 		return
 	}
 	defer rows.Close()

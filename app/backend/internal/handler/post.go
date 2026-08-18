@@ -47,7 +47,7 @@ func (h *Handler) GetTimeline(w http.ResponseWriter, r *http.Request) {
 		`, myID, perPage, offset)
 	}
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "server error")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err, "feed", feed)
 		return
 	}
 	defer rows.Close()
@@ -103,11 +103,11 @@ func (h *Handler) CreatePost(w http.ResponseWriter, r *http.Request) {
 		Content string `json:"content"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.respondError(w, http.StatusBadRequest, "invalid request")
+		h.respondErrorWithErr(r, w, http.StatusBadRequest, "invalid request", err)
 		return
 	}
 	if req.Content == "" || len([]rune(req.Content)) > 140 {
-		h.respondError(w, http.StatusBadRequest, "content must be 1-140 characters")
+		h.respondErrorWithErr(r, w, http.StatusBadRequest, "content must be 1-140 characters", nil)
 		return
 	}
 
@@ -116,12 +116,12 @@ func (h *Handler) CreatePost(w http.ResponseWriter, r *http.Request) {
 		myID, req.Content,
 	)
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "server error")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err)
 		return
 	}
 	postID, err := res.LastInsertId()
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "server error")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err)
 		return
 	}
 
@@ -132,7 +132,7 @@ func (h *Handler) CreatePost(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetUserPosts(w http.ResponseWriter, r *http.Request) {
 	userID, err := pathID(r, "user_id")
 	if err != nil {
-		h.respondError(w, http.StatusBadRequest, "invalid user_id")
+		h.respondErrorWithErr(r, w, http.StatusBadRequest, "invalid user_id", err)
 		return
 	}
 	viewerID, _ := h.currentUserID(r)
@@ -149,7 +149,7 @@ func (h *Handler) GetUserPosts(w http.ResponseWriter, r *http.Request) {
 		ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?
 	`, userID, perPage, offset)
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "server error")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err, "target_user_id", userID)
 		return
 	}
 	defer rows.Close()
@@ -185,18 +185,18 @@ func (h *Handler) GetUserPosts(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetPost(w http.ResponseWriter, r *http.Request) {
 	postID, err := pathID(r, "id")
 	if err != nil {
-		h.respondError(w, http.StatusBadRequest, "invalid id")
+		h.respondErrorWithErr(r, w, http.StatusBadRequest, "invalid id", err)
 		return
 	}
 
 	viewerID, _ := h.currentUserID(r)
 	post, err := h.fetchPost(r, postID, viewerID)
 	if err == sql.ErrNoRows {
-		h.respondError(w, http.StatusNotFound, "post not found")
+		h.respondErrorWithErr(r, w, http.StatusNotFound, "post not found", err, "post_id", postID)
 		return
 	}
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "server error")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err, "post_id", postID)
 		return
 	}
 	h.respondJSON(w, http.StatusOK, map[string]any{"post": post})
@@ -206,7 +206,7 @@ func (h *Handler) DeletePost(w http.ResponseWriter, r *http.Request) {
 	myID, _ := h.currentUserID(r)
 	postID, err := pathID(r, "id")
 	if err != nil {
-		h.respondError(w, http.StatusBadRequest, "invalid id")
+		h.respondErrorWithErr(r, w, http.StatusBadRequest, "invalid id", err)
 		return
 	}
 
@@ -214,12 +214,12 @@ func (h *Handler) DeletePost(w http.ResponseWriter, r *http.Request) {
 		`DELETE FROM posts WHERE id = ? AND user_id = ?`, postID, myID,
 	)
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "server error")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err, "post_id", postID)
 		return
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		h.respondError(w, http.StatusNotFound, "post not found or not yours")
+		h.respondErrorWithErr(r, w, http.StatusNotFound, "post not found or not yours", nil, "post_id", postID)
 		return
 	}
 	h.respondJSON(w, http.StatusOK, map[string]string{"message": "deleted"})

@@ -12,7 +12,7 @@ func (h *Handler) Repost(w http.ResponseWriter, r *http.Request) {
 		PostID int64 `json:"post_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.respondError(w, http.StatusBadRequest, "invalid request")
+		h.respondErrorWithErr(r, w, http.StatusBadRequest, "invalid request", err)
 		return
 	}
 
@@ -47,7 +47,7 @@ func (h *Handler) UnRepost(w http.ResponseWriter, r *http.Request) {
 	myID, _ := h.currentUserID(r)
 	postID, err := pathID(r, "post_id")
 	if err != nil {
-		h.respondError(w, http.StatusBadRequest, "invalid post_id")
+		h.respondErrorWithErr(r, w, http.StatusBadRequest, "invalid post_id", err)
 		return
 	}
 

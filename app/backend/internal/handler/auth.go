@@ -41,17 +41,17 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		Password    string `json:"password"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.respondError(w, http.StatusBadRequest, "invalid request")
+		h.respondErrorWithErr(r, w, http.StatusBadRequest, "invalid request", err)
 		return
 	}
 	if req.Username == "" || req.Email == "" || req.Password == "" {
-		h.respondError(w, http.StatusBadRequest, "username, email, password are required")
+		h.respondErrorWithErr(r, w, http.StatusBadRequest, "username, email, password are required", nil)
 		return
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "server error")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err)
 		return
 	}
 
@@ -61,25 +61,25 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		req.Username, req.DisplayName, req.Email, string(hash),
 	)
 	if err != nil {
-		h.respondError(w, http.StatusConflict, "username or email already exists")
+		h.respondErrorWithErr(r, w, http.StatusConflict, "username or email already exists", err, "username", req.Username, "email", req.Email)
 		return
 	}
 	userID, err := res.LastInsertId()
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "server error")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err)
 		return
 	}
 
 	user, err := h.fetchUser(r, userID)
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "server error")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err)
 		return
 	}
 
 	// 登録と同時にセッションを発行してログイン状態にする
 	token, err := generateToken()
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "server error")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err)
 		return
 	}
 	expiresAt := time.Now().Add(24 * time.Hour)
@@ -88,7 +88,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		token, userID, expiresAt,
 	)
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "server error")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err)
 		return
 	}
 	http.SetCookie(w, h.sessionCookie(token, expiresAt))
@@ -102,7 +102,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.respondError(w, http.StatusBadRequest, "invalid request")
+		h.respondErrorWithErr(r, w, http.StatusBadRequest, "invalid request", err)
 		return
 	}
 
@@ -112,18 +112,18 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		`SELECT id, password_hash FROM users WHERE email = ?`, req.Email,
 	).Scan(&userID, &passwordHash)
 	if err != nil {
-		h.respondError(w, http.StatusUnauthorized, "invalid email or password")
+		h.respondErrorWithErr(r, w, http.StatusUnauthorized, "invalid email or password", err, "email", req.Email)
 		return
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(req.Password)); err != nil {
-		h.respondError(w, http.StatusUnauthorized, "invalid email or password")
+		h.respondErrorWithErr(r, w, http.StatusUnauthorized, "invalid email or password", err, "email", req.Email)
 		return
 	}
 
 	token, err := generateToken()
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "server error")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err)
 		return
 	}
 
@@ -133,7 +133,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		token, userID, expiresAt,
 	)
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "server error")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err)
 		return
 	}
 
@@ -146,7 +146,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("session_id")
 	if err != nil {
-		h.respondError(w, http.StatusBadRequest, "not logged in")
+		h.respondErrorWithErr(r, w, http.StatusBadRequest, "not logged in", err)
 		return
 	}
 

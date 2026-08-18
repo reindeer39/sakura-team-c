@@ -16,11 +16,11 @@ func (h *Handler) CreateReply(w http.ResponseWriter, r *http.Request) {
 		Content string `json:"content"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.respondError(w, http.StatusBadRequest, "invalid request")
+		h.respondErrorWithErr(r, w, http.StatusBadRequest, "invalid request", err)
 		return
 	}
 	if req.Content == "" || len([]rune(req.Content)) > 140 {
-		h.respondError(w, http.StatusBadRequest, "content must be 1-140 characters")
+		h.respondErrorWithErr(r, w, http.StatusBadRequest, "content must be 1-140 characters", nil)
 		return
 	}
 
@@ -30,11 +30,11 @@ func (h *Handler) CreateReply(w http.ResponseWriter, r *http.Request) {
 		`SELECT user_id FROM posts WHERE id = ?`, parentID,
 	).Scan(&parentAuthorID)
 	if err == sql.ErrNoRows {
-		h.respondError(w, http.StatusNotFound, "post not found")
+		h.respondErrorWithErr(r, w, http.StatusNotFound, "post not found", err, "post_id", parentID)
 		return
 	}
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "server error")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err, "post_id", parentID)
 		return
 	}
 
@@ -43,12 +43,12 @@ func (h *Handler) CreateReply(w http.ResponseWriter, r *http.Request) {
 		myID, req.Content, parentID,
 	)
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "server error")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err, "post_id", parentID)
 		return
 	}
 	postID, err := res.LastInsertId()
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "server error")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err)
 		return
 	}
 
@@ -67,18 +67,18 @@ func (h *Handler) CreateReply(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetThread(w http.ResponseWriter, r *http.Request) {
 	postID, err := pathID(r, "id")
 	if err != nil {
-		h.respondError(w, http.StatusBadRequest, "invalid id")
+		h.respondErrorWithErr(r, w, http.StatusBadRequest, "invalid id", err)
 		return
 	}
 	viewerID, _ := h.currentUserID(r)
 
 	post, err := h.fetchPost(r, postID, viewerID)
 	if err == sql.ErrNoRows {
-		h.respondError(w, http.StatusNotFound, "post not found")
+		h.respondErrorWithErr(r, w, http.StatusNotFound, "post not found", err, "post_id", postID)
 		return
 	}
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "server error")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err, "post_id", postID)
 		return
 	}
 

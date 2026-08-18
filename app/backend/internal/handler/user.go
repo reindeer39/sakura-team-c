@@ -9,12 +9,12 @@ import (
 func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 	myID, ok := h.currentUserID(r)
 	if !ok {
-		h.respondError(w, http.StatusUnauthorized, "unauthorized")
+		h.respondErrorWithErr(r, w, http.StatusUnauthorized, "unauthorized", nil)
 		return
 	}
 	user, err := h.fetchUser(r, myID)
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "server error")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err)
 		return
 	}
 	h.respondJSON(w, http.StatusOK, map[string]any{"user": user})
@@ -23,17 +23,17 @@ func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	userID, err := pathID(r, "user_id")
 	if err != nil {
-		h.respondError(w, http.StatusBadRequest, "invalid user_id")
+		h.respondErrorWithErr(r, w, http.StatusBadRequest, "invalid user_id", err)
 		return
 	}
 
 	user, err := h.fetchUser(r, userID)
 	if err == sql.ErrNoRows {
-		h.respondError(w, http.StatusNotFound, "user not found")
+		h.respondErrorWithErr(r, w, http.StatusNotFound, "user not found", err, "target_user_id", userID)
 		return
 	}
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "server error")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err, "target_user_id", userID)
 		return
 	}
 
@@ -54,7 +54,7 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		Bio         *string `json:"bio"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.respondError(w, http.StatusBadRequest, "invalid request")
+		h.respondErrorWithErr(r, w, http.StatusBadRequest, "invalid request", err)
 		return
 	}
 
@@ -63,7 +63,7 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		req.DisplayName, req.Bio, myID,
 	)
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "server error")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err)
 		return
 	}
 
@@ -74,7 +74,7 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetFollowers(w http.ResponseWriter, r *http.Request) {
 	userID, err := pathID(r, "user_id")
 	if err != nil {
-		h.respondError(w, http.StatusBadRequest, "invalid user_id")
+		h.respondErrorWithErr(r, w, http.StatusBadRequest, "invalid user_id", err)
 		return
 	}
 
@@ -82,7 +82,7 @@ func (h *Handler) GetFollowers(w http.ResponseWriter, r *http.Request) {
 		`SELECT follower_id FROM follows WHERE followee_id = ?`, userID,
 	)
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "server error")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err, "target_user_id", userID)
 		return
 	}
 	defer rows.Close()
@@ -110,7 +110,7 @@ func (h *Handler) GetFollowers(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetFollowing(w http.ResponseWriter, r *http.Request) {
 	userID, err := pathID(r, "user_id")
 	if err != nil {
-		h.respondError(w, http.StatusBadRequest, "invalid user_id")
+		h.respondErrorWithErr(r, w, http.StatusBadRequest, "invalid user_id", err)
 		return
 	}
 
@@ -118,7 +118,7 @@ func (h *Handler) GetFollowing(w http.ResponseWriter, r *http.Request) {
 		`SELECT followee_id FROM follows WHERE follower_id = ?`, userID,
 	)
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "server error")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err, "target_user_id", userID)
 		return
 	}
 	defer rows.Close()
@@ -147,7 +147,7 @@ func (h *Handler) Follow(w http.ResponseWriter, r *http.Request) {
 	myID, _ := h.currentUserID(r)
 	targetID, err := pathID(r, "user_id")
 	if err != nil || myID == targetID {
-		h.respondError(w, http.StatusBadRequest, "invalid user_id")
+		h.respondErrorWithErr(r, w, http.StatusBadRequest, "invalid user_id", err, "target_user_id", targetID)
 		return
 	}
 
@@ -157,7 +157,7 @@ func (h *Handler) Follow(w http.ResponseWriter, r *http.Request) {
 		myID, targetID,
 	)
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "server error")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err, "target_user_id", targetID)
 		return
 	}
 
@@ -170,7 +170,7 @@ func (h *Handler) Unfollow(w http.ResponseWriter, r *http.Request) {
 	myID, _ := h.currentUserID(r)
 	targetID, err := pathID(r, "user_id")
 	if err != nil {
-		h.respondError(w, http.StatusBadRequest, "invalid user_id")
+		h.respondErrorWithErr(r, w, http.StatusBadRequest, "invalid user_id", err)
 		return
 	}
 

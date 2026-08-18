@@ -28,7 +28,7 @@ func (h *Handler) GetNotifications(w http.ResponseWriter, r *http.Request) {
 		LIMIT ? OFFSET ?
 	`, listArgs...)
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "server error")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err)
 		return
 	}
 	defer rows.Close()

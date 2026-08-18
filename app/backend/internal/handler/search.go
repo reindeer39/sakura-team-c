@@ -14,7 +14,7 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 	viewerID, _ := h.currentUserID(r)
 
 	if q == "" {
-		h.respondError(w, http.StatusBadRequest, "q is required")
+		h.respondErrorWithErr(r, w, http.StatusBadRequest, "q is required", nil)
 		return
 	}
 
@@ -24,7 +24,7 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 	case "users":
 		h.searchUsers(w, r, q, page, perPage, offset)
 	default:
-		h.respondError(w, http.StatusBadRequest, "type must be posts or users")
+		h.respondErrorWithErr(r, w, http.StatusBadRequest, "type must be posts or users", nil, "search_type", searchType)
 	}
 }
 
@@ -37,7 +37,7 @@ func (h *Handler) searchPosts(w http.ResponseWriter, r *http.Request, q string, 
 		LIMIT ? OFFSET ?
 	`, pattern, perPage, offset)
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "server error")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err, "query", q)
 		return
 	}
 	defer rows.Close()
@@ -79,7 +79,7 @@ func (h *Handler) searchUsers(w http.ResponseWriter, r *http.Request, q string, 
 		LIMIT ? OFFSET ?
 	`, pattern, pattern, perPage, offset)
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "server error")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err, "query", q)
 		return
 	}
 	defer rows.Close()

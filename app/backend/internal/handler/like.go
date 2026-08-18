@@ -8,7 +8,7 @@ import (
 func (h *Handler) GetLikes(w http.ResponseWriter, r *http.Request) {
 	postID, err := pathID(r, "id")
 	if err != nil {
-		h.respondError(w, http.StatusBadRequest, "invalid id")
+		h.respondErrorWithErr(r, w, http.StatusBadRequest, "invalid id", err)
 		return
 	}
 
@@ -16,7 +16,7 @@ func (h *Handler) GetLikes(w http.ResponseWriter, r *http.Request) {
 		`SELECT user_id FROM likes WHERE post_id = ?`, postID,
 	)
 	if err != nil {
-		h.respondError(w, http.StatusInternalServerError, "server error")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err, "post_id", postID)
 		return
 	}
 	defer rows.Close()
@@ -48,7 +48,7 @@ func (h *Handler) Like(w http.ResponseWriter, r *http.Request) {
 		PostID int64 `json:"post_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.respondError(w, http.StatusBadRequest, "invalid request")
+		h.respondErrorWithErr(r, w, http.StatusBadRequest, "invalid request", err)
 		return
 	}
 
@@ -78,7 +78,7 @@ func (h *Handler) Unlike(w http.ResponseWriter, r *http.Request) {
 	myID, _ := h.currentUserID(r)
 	postID, err := pathID(r, "post_id")
 	if err != nil {
-		h.respondError(w, http.StatusBadRequest, "invalid post_id")
+		h.respondErrorWithErr(r, w, http.StatusBadRequest, "invalid post_id", err)
 		return
 	}
 

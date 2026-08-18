@@ -23,7 +23,7 @@ func (h *Handler) NotificationStream(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ThreadStream(w http.ResponseWriter, r *http.Request) {
 	postID, err := pathID(r, "id")
 	if err != nil {
-		h.respondError(w, http.StatusBadRequest, "invalid id")
+		h.respondErrorWithErr(r, w, http.StatusBadRequest, "invalid id", err)
 		return
 	}
 	ch, unsubscribe := h.Threads.Subscribe(h.threadRootID(r, postID))
@@ -34,7 +34,7 @@ func (h *Handler) ThreadStream(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) streamEvents(w http.ResponseWriter, r *http.Request, ch <-chan realtime.Event) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		h.respondError(w, http.StatusInternalServerError, "streaming unsupported")
+		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "streaming unsupported", nil)
 		return
 	}
 
