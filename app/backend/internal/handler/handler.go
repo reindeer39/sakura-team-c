@@ -83,6 +83,152 @@ func (h *Handler) fetchUser(r *http.Request, userID int64) (model.User, error) {
 	return u, nil
 }
 
+// fetchUsersInBatch は Users テーブルから任意件取得し、関連データを付加する
+func (h *Handler) fetchUsersInBatch(r *http.Request, userIDs []int64) (map[int64]model.User, error) {
+	if len(userIDs) == 0 {
+	    return nil, nil
+	}
+	users := make(map[int64]model.User)
+	placeholders := make([]string, len(userIDs))
+	args := make([]any, len(userIDs))
+
+	for i, id := range userIDs {
+	    placeholders[i] = "?"
+	    args[i] = id
+	}
+
+	query := `
+		SELECT id, username, display_name, bio, created_at 
+		FROM users
+		WHERE id IN (` + strings.Join(placeholders, ",") + `)
+		`
+	rows, err := h.DB.QueryContext(r.Context(),query,args...)
+	
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+	    var u model.User
+
+	    err := rows.Scan(
+	        &u.ID,
+	        &u.Username,
+	        &u.DisplayName,
+	        &u.Bio,
+	        &u.CreatedAt,
+	    )
+	    if err != nil {
+	        return nil, err
+	    }
+
+	    u.AvatarColor = model.AvatarColor(u.ID)
+
+	    users[u.ID] = u
+	}
+	if err := rows.Err(); err != nil {
+	    return nil, err
+	}
+	return users, nil
+}
+
+func (h *Handler) fetchFollowerCountsInBatch(r *http.Request, users []int64) (map[int64]int, error) {
+	counts := make(map[int64]int)
+	if len(users) == 0 {
+	    return nil, nil
+	}
+	placeholders := make([]string, len(users))
+	args := make([]any, len(users))
+	for i, id := range users {
+	    placeholders[i] = "?"
+	    args[i] = id
+	}
+	query = `SELECT followee_id, COUNT(*)
+			FROM follows
+			WHERE followee_id IN (` + strings.Join(placeholders, ",") + `) 
+			GROUP BY followee_id`
+	rows, err := h.DB.QueryContext(r.Context(), query, args...)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    for rows.Next() {
+        var userID int64
+        var count int
+
+        if err := rows.Scan(&userID, &count); err != nil {
+            return nil, err
+        }
+
+        counts[userID] = count
+    }
+
+    if err := rows.Err(); err != nil {
+        return nil, err
+    }
+
+    return counts, nil
+}
+
+func (h *Handler) fetchFollowingCountsInBatch(r *http.Request, users []int64) (map[int64]int, error) {
+	counts := make(map[int64]int)
+	if len(users) == 0 {
+	    return nil, nil
+	}
+	placeholders := make([]string, len(users))
+	args := make([]any, len(users))
+	for i, id := range users {
+	    placeholders[i] = "?"
+	    args[i] = id
+	}
+	query = `SELECT follower_id, COUNT(*)
+			FROM follows
+			WHERE follower_id IN (` + strings.Join(placeholders, ",") + `) 
+			GROUP BY follower_id`
+	rows, err := h.DB.QueryContext(r.Context(), query, args...)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    for rows.Next() {
+        var userID int64
+        var count int
+
+        if err := rows.Scan(&userID, &count); err != nil {
+            return nil, err
+        }
+
+        counts[userID] = count
+    }
+
+    if err := rows.Err(); err != nil {
+        return nil, err
+    }
+
+    return counts, nil
+}
+
+func (h *Handler) fetchPostCountsInBatch(r *http.Request, users []int64) (map[int64]int, error) {
+	placeholders := make([]string, len(users))
+	args := make([]any, len(users))
+	h.DB.QueryRowContext(r.Context(),
+		`SELECT COUNT(*) FROM posts WHERE user_id = ?`, u.ID,
+	).Scan(&u.PostCount)
+}
+
+func (h *Handler) fetchFollowedByMeInBatch(r *http.Request, users []int64) (map[int64]int, error) {
+	placeholders := make([]string, len(users))
+	args := make([]any, len(users))
+	if viewerID, ok := h.currentUserID(r); ok && viewerID != u.ID {
+		h.DB.QueryRowContext(r.Context(),
+			`SELECT EXISTS(SELECT 1 FROM follows WHERE follower_id = ? AND followee_id = ?)`,
+			viewerID, u.ID,
+		).Scan(&u.FollowedByMe)
+	}
+}
+
 // fetchPost は posts テーブルから1件取得し、関連データを付加する
 func (h *Handler) fetchPost(r *http.Request, postID, viewerID int64) (model.Post, error) {
 	var p model.Post
