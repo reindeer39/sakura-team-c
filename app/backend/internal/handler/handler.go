@@ -3,6 +3,7 @@ package handler
 import (
 	"database/sql"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"sakuravel/internal/middleware"
 	"sakuravel/internal/model"
@@ -18,6 +19,14 @@ type Handler struct {
 	// Notifications はユーザーIDごと、Threads はスレッドのルート投稿IDごとの SSE 購読を管理する。
 	Notifications *realtime.Hub
 	Threads       *realtime.Hub
+	Logger        *slog.Logger
+}
+
+func (h *Handler) logger() *slog.Logger {
+	if h.Logger != nil {
+		return h.Logger
+	}
+	return slog.Default()
 }
 
 func (h *Handler) respondJSON(w http.ResponseWriter, status int, v any) {
@@ -27,6 +36,32 @@ func (h *Handler) respondJSON(w http.ResponseWriter, status int, v any) {
 }
 
 func (h *Handler) respondError(w http.ResponseWriter, status int, msg string) {
+	if status >= http.StatusInternalServerError {
+		h.logger().Error("handler error", "status", status, "error", msg)
+	} else if status >= http.StatusBadRequest {
+		h.logger().Warn("handler client error", "status", status, "error", msg)
+	}
+	h.respondJSON(w, status, map[string]string{"error": msg})
+}
+
+func (h *Handler) respondErrorWithErr(r *http.Request, w http.ResponseWriter, status int, msg string, err error, attrs ...any) {
+	logAttrs := []any{"status", status, "client_message", msg}
+	if err != nil {
+		logAttrs = append(logAttrs, "error", err.Error())
+	}
+	if r != nil {
+		logAttrs = append(logAttrs, "method", r.Method, "path", r.URL.Path)
+		if uid, ok := h.currentUserID(r); ok {
+			logAttrs = append(logAttrs, "user_id", uid)
+		}
+	}
+	logAttrs = append(logAttrs, attrs...)
+
+	if status >= http.StatusInternalServerError {
+		h.logger().ErrorContext(r.Context(), "handler error", logAttrs...)
+	} else {
+		h.logger().WarnContext(r.Context(), "handler client error", logAttrs...)
+	}
 	h.respondJSON(w, status, map[string]string{"error": msg})
 }
 
