@@ -56,7 +56,7 @@ func SetupTestDB(t *testing.T) *sql.DB {
 	ResetAndMigrateDB(t, db)
 
 	t.Cleanup(func() {
-		db.Close()
+		_ = db.Close()
 	})
 
 	return db
