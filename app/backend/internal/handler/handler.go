@@ -63,21 +63,21 @@ func (h *Handler) fetchUser(r *http.Request, userID int64) (model.User, error) {
 
 	// フォロワー数・フォロー数・投稿数を取得
 	if err := h.DB.QueryRowContext(r.Context(),
-	    `SELECT COUNT(*) FROM follows WHERE followee_id = ?`, u.ID,
+		`SELECT COUNT(*) FROM follows WHERE followee_id = ?`, u.ID,
 	).Scan(&u.FollowersCount); err != nil {
-	    return u, err
+		return u, err
 	}
 
 	if err := h.DB.QueryRowContext(r.Context(),
-	    `SELECT COUNT(*) FROM follows WHERE follower_id = ?`, u.ID,
+		`SELECT COUNT(*) FROM follows WHERE follower_id = ?`, u.ID,
 	).Scan(&u.FollowingCount); err != nil {
-	    return u, err
+		return u, err
 	}
 
 	if err := h.DB.QueryRowContext(r.Context(),
-	    `SELECT COUNT(*) FROM posts WHERE user_id = ?`, u.ID,
+		`SELECT COUNT(*) FROM posts WHERE user_id = ?`, u.ID,
 	).Scan(&u.PostCount); err != nil {
-	    return u, err
+		return u, err
 	}
 
 	if viewerID, ok := h.currentUserID(r); ok && viewerID != u.ID {
@@ -115,7 +115,7 @@ func (h *Handler) fetchUsersInBatch(r *http.Request, userIDs []int64) (map[int64
 		return nil, err
 	}
 	defer func() {
-	    _ = rows.Close()
+		_ = rows.Close()
 	}()
 
 	for rows.Next() {
@@ -197,7 +197,7 @@ func (h *Handler) fetchFollowerCountsInBatch(r *http.Request, users []int64) (ma
 		return nil, err
 	}
 	defer func() {
-	    _ = rows.Close()
+		_ = rows.Close()
 	}()
 
 	for rows.Next() {
@@ -239,7 +239,7 @@ func (h *Handler) fetchFollowingCountsInBatch(r *http.Request, users []int64) (m
 		return nil, err
 	}
 	defer func() {
-	    _ = rows.Close()
+		_ = rows.Close()
 	}()
 
 	for rows.Next() {
@@ -281,7 +281,7 @@ func (h *Handler) fetchPostCountsInBatch(r *http.Request, users []int64) (map[in
 		return nil, err
 	}
 	defer func() {
-	    _ = rows.Close()
+		_ = rows.Close()
 	}()
 
 	for rows.Next() {
@@ -337,7 +337,7 @@ func (h *Handler) fetchFollowedByMeInBatch(r *http.Request, users []int64) (map[
 		return nil, err
 	}
 	defer func() {
-	    _ = rows.Close()
+		_ = rows.Close()
 	}()
 
 	for rows.Next() {
@@ -450,7 +450,7 @@ func (h *Handler) fetchPostsInBatch(r *http.Request, ids []int64, viewerID int64
 		return nil, err
 	}
 	defer func() {
-	    _ = rows.Close()
+		_ = rows.Close()
 	}()
 
 	for rows.Next() {
@@ -545,7 +545,7 @@ func (h *Handler) fetchLikeCountsInBatch(r *http.Request, postIDs []int64) (map[
 		return nil, err
 	}
 	defer func() {
-	    _ = rows.Close()
+		_ = rows.Close()
 	}()
 
 	for rows.Next() {
@@ -587,7 +587,7 @@ func (h *Handler) fetchRepostsCountsInBatch(r *http.Request, postIDs []int64) (m
 		return nil, err
 	}
 	defer func() {
-	    _ = rows.Close()
+		_ = rows.Close()
 	}()
 
 	for rows.Next() {
