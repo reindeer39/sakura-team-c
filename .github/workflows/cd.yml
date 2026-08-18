@@ -1,0 +1,111 @@
+name: Backend CD
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "app/backend/**/*.go"
+      - "app/backend/go.mod"
+      - "app/backend/go.sum"
+      - "app/backend/Dockerfile"
+      - "deploy/deploy.sh"
+      - ".github/workflows/cd.yml"
+
+  workflow_dispatch:
+
+concurrency:
+  group: backend-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set image name
+        env:
+          REGISTRY_HOST: ${{ secrets.SAKURA_REGISTRY_HOST }}
+        run: |
+          echo "IMAGE_NAME=${REGISTRY_HOST}/intern2026-app-backend" >> "$GITHUB_ENV"
+
+      - name: Login to Sakura Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ secrets.SAKURA_REGISTRY_HOST }}
+          username: ${{ secrets.SAKURA_REGISTRY_USERNAME }}
+          password: ${{ secrets.SAKURA_REGISTRY_PASSWORD }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: ./app/backend
+          file: ./app/backend/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.IMAGE_NAME }}:latest
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Prepare deployment directory
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "mkdir -p /opt/sakuravel"
+
+      - name: Upload deployment script
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          scp -i ~/.ssh/deploy_key \
+            deploy/deploy.sh \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:/opt/sakuravel/deploy.sh"
+
+      - name: Login to registry from VM
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          REGISTRY_HOST: ${{ secrets.SAKURA_REGISTRY_HOST }}
+          REGISTRY_USERNAME: ${{ secrets.SAKURA_REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.SAKURA_REGISTRY_PASSWORD }}
+        run: |
+          printf '%s' "$REGISTRY_PASSWORD" |
+            ssh -i ~/.ssh/deploy_key \
+              "${DEPLOY_USER}@${DEPLOY_HOST}" \
+              "docker login '${REGISTRY_HOST}' \
+                --username '${REGISTRY_USERNAME}' \
+                --password-stdin"
+
+      - name: Deploy
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "chmod +x /opt/sakuravel/deploy.sh && \
+             /opt/sakuravel/deploy.sh '${IMAGE_NAME}:${GITHUB_SHA}'"
