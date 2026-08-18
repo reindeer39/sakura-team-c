@@ -25,8 +25,9 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	// CORS ミドルウェア
-	mux.Handle("/", corsMiddleware(routes(h, auth)))
+	// middlewares
+	handler := corsMiddleware(middleware.MetricsMiddleware(routes(h, auth)))
+	mux.Handle("/", handler)
 
 	port := os.Getenv("PORT")
 	if port == "" {
