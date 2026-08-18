@@ -490,7 +490,20 @@ func (h *Handler) fetchPostsInBatch(r *http.Request, ids []int64, viewerID int64
 		p.RepostsCount = repostCounts[p.ID]
 	}
 
-	return posts, nil
+	postByID := make(map[int64]model.Post, len(posts))
+
+	for _, p := range posts {
+		postByID[p.ID] = p
+	}
+
+	orderedPosts := make([]model.Post, 0, len(ids))
+	for _, id := range ids {
+		if p, ok := postByID[id]; ok {
+			orderedPosts = append(orderedPosts, p)
+		}
+	}
+
+	return orderedPosts, nil
 }
 
 // fetchLikeCountsInbatch は posts テーブルから任意件取得し、関連データを付加する
