@@ -48,9 +48,17 @@ func SetupTestDB(t *testing.T) *sql.DB {
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(time.Minute)
 
-	// 疎通確認
-	if err := db.Ping(); err != nil {
-		t.Fatalf("failed to ping test db (%s): %v (Is test DB container running on port 3307?)", dsn, err)
+	// 疎通確認（CI環境などの起動遅延・瞬断に備えてリトライする）
+	var pingErr error
+	for i := 0; i < 20; i++ {
+		pingErr = db.Ping()
+		if pingErr == nil {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	if pingErr != nil {
+		t.Fatalf("failed to ping test db (%s): %v (Is test DB container running on port 3307?)", dsn, pingErr)
 	}
 
 	ResetAndMigrateDB(t, db)
