@@ -1,0 +1,67 @@
+package server
+
+import (
+	"net/http"
+
+	"sakuravel/internal/handler"
+	"sakuravel/internal/middleware"
+)
+
+// NewRouter は全ルーティングを定義した http.Handler を返す
+func NewRouter(h *handler.Handler, auth *middleware.Auth) http.Handler {
+	mux := http.NewServeMux()
+
+	// 認証
+	mux.HandleFunc("POST /register", h.Register)
+	mux.HandleFunc("POST /login", h.Login)
+	mux.Handle("POST /logout", auth.Required(http.HandlerFunc(h.Logout)))
+
+	// 自分のプロフィール
+	mux.Handle("GET /me", auth.Required(http.HandlerFunc(h.GetMe)))
+
+	// 足跡
+	mux.Handle("GET /me/footprints", auth.Required(http.HandlerFunc(h.GetFootprints)))
+
+	// ユーザー
+	mux.Handle("GET /profile/{user_id}", auth.Optional(http.HandlerFunc(h.GetProfile)))
+	mux.Handle("PUT /profile", auth.Required(http.HandlerFunc(h.UpdateProfile)))
+	mux.Handle("GET /users/{user_id}/followers", auth.Optional(http.HandlerFunc(h.GetFollowers)))
+	mux.Handle("GET /users/{user_id}/following", auth.Optional(http.HandlerFunc(h.GetFollowing)))
+	mux.Handle("POST /users/{user_id}/follow", auth.Required(http.HandlerFunc(h.Follow)))
+	mux.Handle("DELETE /users/{user_id}/follow", auth.Required(http.HandlerFunc(h.Unfollow)))
+
+	// 投稿
+	mux.Handle("GET /posts", auth.Required(http.HandlerFunc(h.GetTimeline)))
+	mux.Handle("POST /posts", auth.Required(http.HandlerFunc(h.CreatePost)))
+	mux.Handle("GET /posts/{id}", auth.Optional(http.HandlerFunc(h.GetPost)))
+	mux.Handle("GET /users/{user_id}/posts", auth.Optional(http.HandlerFunc(h.GetUserPosts)))
+	mux.Handle("DELETE /posts/{id}", auth.Required(http.HandlerFunc(h.DeletePost)))
+
+	// 返信（スレッド）
+	mux.Handle("POST /replies", auth.Required(http.HandlerFunc(h.CreateReply)))
+	mux.Handle("GET /posts/{id}/thread", auth.Optional(http.HandlerFunc(h.GetThread)))
+	mux.Handle("GET /posts/{id}/thread/stream", auth.Optional(http.HandlerFunc(h.ThreadStream)))
+
+	// いいね
+	mux.HandleFunc("GET /posts/{id}/likes", h.GetLikes)
+	mux.Handle("POST /likes", auth.Required(http.HandlerFunc(h.Like)))
+	mux.Handle("DELETE /likes/{post_id}", auth.Required(http.HandlerFunc(h.Unlike)))
+
+	// リポスト
+	mux.Handle("POST /reposts", auth.Required(http.HandlerFunc(h.Repost)))
+	mux.Handle("DELETE /reposts/{post_id}", auth.Required(http.HandlerFunc(h.UnRepost)))
+
+	// 検索
+	mux.HandleFunc("GET /search", h.Search)
+
+	// 通知
+	mux.Handle("GET /notifications", auth.Required(http.HandlerFunc(h.GetNotifications)))
+	mux.Handle("POST /notifications/read", auth.Required(http.HandlerFunc(h.MarkNotificationsRead)))
+	mux.Handle("GET /notifications/unread_count", auth.Required(http.HandlerFunc(h.GetUnreadCount)))
+	mux.Handle("GET /notifications/stream", auth.Required(http.HandlerFunc(h.NotificationStream)))
+
+	// トレンド
+	mux.Handle("GET /trending", auth.Optional(http.HandlerFunc(h.GetTrending)))
+
+	return mux
+}

@@ -2,6 +2,7 @@
 
 SCALE ?= 1
 DATABASE_URL ?= sakuravel:password@tcp(db:3306)/sakuravel?parseTime=true&charset=utf8mb4
+TEST_DATABASE_URL ?= sakuravel:password@tcp(localhost:3307)/sakuravel?parseTime=true&charset=utf8mb4
 
 API_URL ?= http://localhost:8080
 USERNAME ?= test
@@ -80,6 +81,19 @@ db-cli: ## MariaDB クライアントに接続 (sakuravel ユーザー)
 db-root: ## MariaDB クライアントに root ユーザーで接続
 	docker compose exec db mariadb -u root -ppassword sakuravel
 
+.PHONY: test-db-up
+test-db-up: ## テスト用DBを起動してヘルスチェック待機
+	@echo "テスト用DBを起動中 (ポート 3307)..."
+	docker compose -f docker-compose.test.yml up -d db-test
+	@until docker compose -f docker-compose.test.yml ps db-test --format json | grep -q '"Health":"healthy"'; do \
+		sleep 1; \
+	done
+	@echo "テスト用DBの起動が完了しました。"
+
+.PHONY: test-db-down
+test-db-down: ## テスト用DBを停止・ボリューム削除
+	docker compose -f docker-compose.test.yml down -v
+
 .PHONY: test
-test: ## Go のテストを実行
-	go test -v ./...
+test: test-db-up ## テスト用DBを起動してGoのテストを実行
+	DATABASE_URL="$(TEST_DATABASE_URL)" go test -v -race ./...
