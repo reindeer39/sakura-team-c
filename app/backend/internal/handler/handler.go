@@ -8,6 +8,7 @@ import (
 	"sakuravel/internal/model"
 	"sakuravel/internal/realtime"
 	"strconv"
+	"strings"
 )
 
 type Handler struct {
@@ -86,15 +87,15 @@ func (h *Handler) fetchUser(r *http.Request, userID int64) (model.User, error) {
 // fetchUsersInBatch は Users テーブルから任意件取得し、関連データを付加する
 func (h *Handler) fetchUsersInBatch(r *http.Request, userIDs []int64) (map[int64]model.User, error) {
 	if len(userIDs) == 0 {
-	    return nil, nil
+		return nil, nil
 	}
 	users := make(map[int64]model.User)
 	placeholders := make([]string, len(userIDs))
 	args := make([]any, len(userIDs))
 
 	for i, id := range userIDs {
-	    placeholders[i] = "?"
-	    args[i] = id
+		placeholders[i] = "?"
+		args[i] = id
 	}
 
 	query := `
@@ -102,64 +103,63 @@ func (h *Handler) fetchUsersInBatch(r *http.Request, userIDs []int64) (map[int64
 		FROM users
 		WHERE id IN (` + strings.Join(placeholders, ",") + `)
 		`
-	rows, err := h.DB.QueryContext(r.Context(),query,args...)
-	
+	rows, err := h.DB.QueryContext(r.Context(), query, args...)
+
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
-	    var u model.User
+		var u model.User
 
-	    err := rows.Scan(
-	        &u.ID,
-	        &u.Username,
-	        &u.DisplayName,
-	        &u.Bio,
-	        &u.CreatedAt,
-	    )
-	    if err != nil {
-	        return nil, err
-	    }
+		err := rows.Scan(
+			&u.ID,
+			&u.Username,
+			&u.DisplayName,
+			&u.Bio,
+			&u.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
 
-	    u.AvatarColor = model.AvatarColor(u.ID)
+		u.AvatarColor = model.AvatarColor(u.ID)
 
-		
 		users[u.ID] = u
 	}
 	if err := rows.Err(); err != nil {
-	    return nil, err
+		return nil, err
 	}
 
 	followerCounts, err := h.fetchFollowerCountsInBatch(r, userIDs)
 	if err != nil {
-	    return nil, err
+		return nil, err
 	}
 
 	followingCounts, err := h.fetchFollowingCountsInBatch(r, userIDs)
 	if err != nil {
-	    return nil, err
+		return nil, err
 	}
 
 	postCounts, err := h.fetchPostCountsInBatch(r, userIDs)
 	if err != nil {
-	    return nil, err
+		return nil, err
 	}
 
 	followedByMe, err := h.fetchFollowedByMeInBatch(r, userIDs)
 	if err != nil {
-	    return nil, err
+		return nil, err
 	}
 
 	for userID, u := range users {
-    	u.FollowersCount = followerCounts[userID]
-    	u.FollowingCount = followingCounts[userID]
-    	u.PostCount = postCounts[userID]
-    	u.FollowedByMe = followedByMe[userID]
+		u.FollowersCount = followerCounts[userID]
+		u.FollowingCount = followingCounts[userID]
+		u.PostCount = postCounts[userID]
+		u.FollowedByMe = followedByMe[userID]
 
-    	users[userID] = u
+		users[userID] = u
 	}
-	
+
 	return users, nil
 }
 
@@ -167,143 +167,143 @@ func (h *Handler) fetchUsersInBatch(r *http.Request, userIDs []int64) (map[int64
 func (h *Handler) fetchFollowerCountsInBatch(r *http.Request, users []int64) (map[int64]int, error) {
 	counts := make(map[int64]int)
 	if len(users) == 0 {
-	    return counts, nil
+		return counts, nil
 	}
 	placeholders := make([]string, len(users))
 	args := make([]any, len(users))
 	for i, id := range users {
-	    placeholders[i] = "?"
-	    args[i] = id
+		placeholders[i] = "?"
+		args[i] = id
 	}
 	query := `SELECT followee_id, COUNT(*)
 			FROM follows
 			WHERE followee_id IN (` + strings.Join(placeholders, ",") + `) 
 			GROUP BY followee_id`
 	rows, err := h.DB.QueryContext(r.Context(), query, args...)
-    if err != nil {
-        return nil, err
-    }
-    defer rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-    for rows.Next() {
-        var userID int64
-        var count int
+	for rows.Next() {
+		var userID int64
+		var count int
 
-        if err := rows.Scan(&userID, &count); err != nil {
-            return nil, err
-        }
+		if err := rows.Scan(&userID, &count); err != nil {
+			return nil, err
+		}
 
-        counts[userID] = count
-    }
+		counts[userID] = count
+	}
 
-    if err := rows.Err(); err != nil {
-        return nil, err
-    }
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
-    return counts, nil
+	return counts, nil
 }
 
 // fetchFollowingCountsInBatch は follows テーブルから各ユーザのフォロー数を全件取得し、ユーザIDと紐づけ
 func (h *Handler) fetchFollowingCountsInBatch(r *http.Request, users []int64) (map[int64]int, error) {
 	counts := make(map[int64]int)
 	if len(users) == 0 {
-	    return counts, nil
+		return counts, nil
 	}
 	placeholders := make([]string, len(users))
 	args := make([]any, len(users))
 	for i, id := range users {
-	    placeholders[i] = "?"
-	    args[i] = id
+		placeholders[i] = "?"
+		args[i] = id
 	}
 	query := `SELECT follower_id, COUNT(*)
 			FROM follows
 			WHERE follower_id IN (` + strings.Join(placeholders, ",") + `) 
 			GROUP BY follower_id`
 	rows, err := h.DB.QueryContext(r.Context(), query, args...)
-    if err != nil {
-        return nil, err
-    }
-    defer rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-    for rows.Next() {
-        var userID int64
-        var count int
+	for rows.Next() {
+		var userID int64
+		var count int
 
-        if err := rows.Scan(&userID, &count); err != nil {
-            return nil, err
-        }
+		if err := rows.Scan(&userID, &count); err != nil {
+			return nil, err
+		}
 
-        counts[userID] = count
-    }
+		counts[userID] = count
+	}
 
-    if err := rows.Err(); err != nil {
-        return nil, err
-    }
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
-    return counts, nil
+	return counts, nil
 }
 
 // fetchPostCountsInBatch は posts テーブルから各ユーザの投稿数を全件取得し、ユーザIDと紐づけ
 func (h *Handler) fetchPostCountsInBatch(r *http.Request, users []int64) (map[int64]int, error) {
 	counts := make(map[int64]int)
 	if len(users) == 0 {
-	    return counts, nil
+		return counts, nil
 	}
 	placeholders := make([]string, len(users))
 	args := make([]any, len(users))
 	for i, id := range users {
-	    placeholders[i] = "?"
-	    args[i] = id
+		placeholders[i] = "?"
+		args[i] = id
 	}
 	query := `SELECT user_id, COUNT(*)
 			FROM posts
 			WHERE user_id IN (` + strings.Join(placeholders, ",") + `) 
 			GROUP BY user_id`
 	rows, err := h.DB.QueryContext(r.Context(), query, args...)
-    if err != nil {
-        return nil, err
-    }
-    defer rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-    for rows.Next() {
-        var userID int64
-        var count int
+	for rows.Next() {
+		var userID int64
+		var count int
 
-        if err := rows.Scan(&userID, &count); err != nil {
-            return nil, err
-        }
+		if err := rows.Scan(&userID, &count); err != nil {
+			return nil, err
+		}
 
-        counts[userID] = count
-    }
+		counts[userID] = count
+	}
 
-    if err := rows.Err(); err != nil {
-        return nil, err
-    }
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
-    return counts, nil
+	return counts, nil
 }
 
 // fetchFollowedByMeInBatch は、現在のユーザが各ユーザをフォローしているか一括取得する
 func (h *Handler) fetchFollowedByMeInBatch(r *http.Request, users []int64) (map[int64]bool, error) {
 	followed := make(map[int64]bool)
 	if len(users) == 0 {
-	    return followed, nil
+		return followed, nil
 	}
 	viewerID, ok := h.currentUserID(r)
-    if !ok {
-        return followed, nil
-    }
+	if !ok {
+		return followed, nil
+	}
 	placeholders := make([]string, len(users))
-    args := make([]any, 0, len(users)+1)
+	args := make([]any, 0, len(users)+1)
 
-    args = append(args, viewerID)
+	args = append(args, viewerID)
 
 	for i, id := range users {
-	    placeholders[i] = "?"
-	    args = append(args, id)
+		placeholders[i] = "?"
+		args = append(args, id)
 
-        // 最初は全員false
-        followed[id] = false
+		// 最初は全員false
+		followed[id] = false
 	}
 
 	query := `
@@ -313,25 +313,25 @@ func (h *Handler) fetchFollowedByMeInBatch(r *http.Request, users []int64) (map[
           AND followee_id IN (` + strings.Join(placeholders, ",") + `)
     `
 
-    rows, err := h.DB.QueryContext(r.Context(), query, args...)
-    if err != nil {
-        return nil, err
-    }
-    defer rows.Close()
+	rows, err := h.DB.QueryContext(r.Context(), query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-    for rows.Next() {
-        var userID int64
+	for rows.Next() {
+		var userID int64
 
-        if err := rows.Scan(&userID); err != nil {
-            return nil, err
-        }
+		if err := rows.Scan(&userID); err != nil {
+			return nil, err
+		}
 
-        followed[userID] = true
-    }
+		followed[userID] = true
+	}
 
-    if err := rows.Err(); err != nil {
-        return nil, err
-    }
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return followed, nil
 }
 
@@ -401,17 +401,17 @@ func (h *Handler) fetchPost(r *http.Request, postID, viewerID int64) (model.Post
 }
 
 // fetchPostsInBatch は posts テーブルから任意件取得し、関連データを付加する
-func (h *Handler) fetchPostsInBatch(r *http.Request, ids []int64 , viewerID int64) ([]model.Post, error) {
+func (h *Handler) fetchPostsInBatch(r *http.Request, ids []int64, viewerID int64) ([]model.Post, error) {
 	if len(ids) == 0 {
-    	return nil, nil
+		return nil, nil
 	}
 	var posts []model.Post
 	placeholders := make([]string, len(ids))
 	args := make([]any, len(ids))
 
 	for i, id := range ids {
-	    placeholders[i] = "?"
-	    args[i] = id
+		placeholders[i] = "?"
+		args[i] = id
 	}
 
 	query := `
@@ -419,38 +419,37 @@ func (h *Handler) fetchPostsInBatch(r *http.Request, ids []int64 , viewerID int6
 		FROM posts
 		WHERE id IN (` + strings.Join(placeholders, ",") + `)
 		`
-	rows, err := h.DB.QueryContext(r.Context(),query,args...)
-	
+	rows, err := h.DB.QueryContext(r.Context(), query, args...)
+
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-    	var p model.Post
-    	var userID int64
+		var p model.Post
+		var userID int64
 
-    	err := rows.Scan(
-    	    &p.ID,
-    	    &userID,
-    	    &p.Content,
-    	    &p.IsRepost,
-    	    &p.OriginalPostID,
-    	    &p.ParentPostID,
-    	    &p.CreatedAt,
-    	)
-    	if err != nil {
-    	    return nil, err
-    	}
+		err := rows.Scan(
+			&p.ID,
+			&userID,
+			&p.Content,
+			&p.IsRepost,
+			&p.OriginalPostID,
+			&p.ParentPostID,
+			&p.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
 		userCache := make(map[int64]model.User)
-		
-    	posts = append(posts, p)
+
+		posts = append(posts, p)
 	}
 	if err := rows.Err(); err != nil {
-	    return nil, err
+		return nil, err
 	}
-	
-	
+
 	return p, nil
 }
 
