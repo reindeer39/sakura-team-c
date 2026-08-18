@@ -132,10 +132,11 @@ func (h *Handler) fetchUsersInBatch(r *http.Request, userIDs []int64) (map[int64
 	return users, nil
 }
 
+// fetchFollowerCountsInBatch は follows テーブルから各ユーザのフォロワー数を全件取得し、ユーザIDと紐づけ
 func (h *Handler) fetchFollowerCountsInBatch(r *http.Request, users []int64) (map[int64]int, error) {
 	counts := make(map[int64]int)
 	if len(users) == 0 {
-	    return nil, nil
+	    return counts, nil
 	}
 	placeholders := make([]string, len(users))
 	args := make([]any, len(users))
@@ -143,7 +144,7 @@ func (h *Handler) fetchFollowerCountsInBatch(r *http.Request, users []int64) (ma
 	    placeholders[i] = "?"
 	    args[i] = id
 	}
-	query = `SELECT followee_id, COUNT(*)
+	query := `SELECT followee_id, COUNT(*)
 			FROM follows
 			WHERE followee_id IN (` + strings.Join(placeholders, ",") + `) 
 			GROUP BY followee_id`
@@ -171,10 +172,11 @@ func (h *Handler) fetchFollowerCountsInBatch(r *http.Request, users []int64) (ma
     return counts, nil
 }
 
+// fetchFollowingCountsInBatch は follows テーブルから各ユーザのフォロー数を全件取得し、ユーザIDと紐づけ
 func (h *Handler) fetchFollowingCountsInBatch(r *http.Request, users []int64) (map[int64]int, error) {
 	counts := make(map[int64]int)
 	if len(users) == 0 {
-	    return nil, nil
+	    return counts, nil
 	}
 	placeholders := make([]string, len(users))
 	args := make([]any, len(users))
@@ -182,7 +184,7 @@ func (h *Handler) fetchFollowingCountsInBatch(r *http.Request, users []int64) (m
 	    placeholders[i] = "?"
 	    args[i] = id
 	}
-	query = `SELECT follower_id, COUNT(*)
+	query := `SELECT follower_id, COUNT(*)
 			FROM follows
 			WHERE follower_id IN (` + strings.Join(placeholders, ",") + `) 
 			GROUP BY follower_id`
@@ -210,23 +212,95 @@ func (h *Handler) fetchFollowingCountsInBatch(r *http.Request, users []int64) (m
     return counts, nil
 }
 
+// fetchPostCountsInBatch は posts テーブルから各ユーザの投稿数を全件取得し、ユーザIDと紐づけ
 func (h *Handler) fetchPostCountsInBatch(r *http.Request, users []int64) (map[int64]int, error) {
+	counts := make(map[int64]int)
+	if len(users) == 0 {
+	    return counts, nil
+	}
 	placeholders := make([]string, len(users))
 	args := make([]any, len(users))
-	h.DB.QueryRowContext(r.Context(),
-		`SELECT COUNT(*) FROM posts WHERE user_id = ?`, u.ID,
-	).Scan(&u.PostCount)
+	for i, id := range users {
+	    placeholders[i] = "?"
+	    args[i] = id
+	}
+	query := `SELECT user_id, COUNT(*)
+			FROM posts
+			WHERE user_id IN (` + strings.Join(placeholders, ",") + `) 
+			GROUP BY user_id`
+	rows, err := h.DB.QueryContext(r.Context(), query, args...)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    for rows.Next() {
+        var userID int64
+        var count int
+
+        if err := rows.Scan(&userID, &count); err != nil {
+            return nil, err
+        }
+
+        counts[userID] = count
+    }
+
+    if err := rows.Err(); err != nil {
+        return nil, err
+    }
+
+    return counts, nil
 }
 
-func (h *Handler) fetchFollowedByMeInBatch(r *http.Request, users []int64) (map[int64]int, error) {
-	placeholders := make([]string, len(users))
-	args := make([]any, len(users))
-	if viewerID, ok := h.currentUserID(r); ok && viewerID != u.ID {
-		h.DB.QueryRowContext(r.Context(),
-			`SELECT EXISTS(SELECT 1 FROM follows WHERE follower_id = ? AND followee_id = ?)`,
-			viewerID, u.ID,
-		).Scan(&u.FollowedByMe)
+// fetchFollowedByMeInBatch は、現在のユーザが各ユーザをフォローしているか一括取得する
+func (h *Handler) fetchFollowedByMeInBatch(r *http.Request, users []int64) (map[int64]bool, error) {
+	followed := make(map[int64]bool)
+	if len(users) == 0 {
+	    return followed, nil
 	}
+	viewerID, ok := h.currentUserID(r)
+    if !ok {
+        return followed, nil
+    }
+	placeholders := make([]string, len(users))
+    args := make([]any, 0, len(users)+1)
+
+    args = append(args, viewerID)
+
+	for i, id := range users {
+	    placeholders[i] = "?"
+	    args = append(args, id)
+
+        // 最初は全員false
+        followed[id] = false
+	}
+
+	query := `
+        SELECT followee_id
+        FROM follows
+        WHERE follower_id = ?
+          AND followee_id IN (` + strings.Join(placeholders, ",") + `)
+    `
+
+    rows, err := h.DB.QueryContext(r.Context(), query, args...)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    for rows.Next() {
+        var userID int64
+
+        if err := rows.Scan(&userID, &count); err != nil {
+            return nil, err
+        }
+
+        followed[userID] = true
+    }
+
+    if err := rows.Err(); err != nil {
+        return nil, err
+    }
 }
 
 // fetchPost は posts テーブルから1件取得し、関連データを付加する
