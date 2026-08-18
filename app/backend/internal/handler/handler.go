@@ -425,7 +425,7 @@ func (h *Handler) fetchPostsInBatch(r *http.Request, ids []int64, viewerID int64
 		return nil, err
 	}
 	defer rows.Close()
-
+	
 	for rows.Next() {
 		var p model.Post
 		var userID int64
@@ -443,7 +443,7 @@ func (h *Handler) fetchPostsInBatch(r *http.Request, ids []int64, viewerID int64
 			return nil, err
 		}
 		//userCache := make(map[int64]model.User)
-
+		
 		posts = append(posts, p)
 	}
 	if err := rows.Err(); err != nil {
@@ -451,6 +451,86 @@ func (h *Handler) fetchPostsInBatch(r *http.Request, ids []int64, viewerID int64
 	}
 
 	return posts, nil
+}
+
+// fetchLikeCountsInbatch は posts テーブルから任意件取得し、関連データを付加する
+func (h *Handler) fetchLikeCountsInBatch(r *http.Request, postIDs []int64) (map[int64]int, error) {
+	counts := make(map[int64]int)
+	if len(postIDs) == 0 {
+		return counts, nil
+	}
+	placeholders := make([]string, len(postIDs))
+	args := make([]any, len(postIDs))
+	for i, id := range postIDs {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	query := `SELECT post_id, COUNT(*)
+			FROM likes
+			WHERE post_id IN (` + strings.Join(placeholders, ",") + `) 
+			GROUP BY post_id`
+	rows, err := h.DB.QueryContext(r.Context(), query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var posts int64
+		var count int
+
+		if err := rows.Scan(&posts, &count); err != nil {
+			return nil, err
+		}
+
+		counts[posts] = count
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return counts, nil
+}
+
+// fetchRepostsCountsInbatch は posts テーブルから任意件取得し、関連データを付加する
+func (h *Handler) fetchRepostsCountsInBatch(r *http.Request, postIDs  []int64) (map[int64]int, error) {
+	counts := make(map[int64]int)
+	if len(postIDs) == 0 {
+		return counts, nil
+	}
+	placeholders := make([]string, len(postIDs))
+	args := make([]any, len(postIDs))
+	for i, id := range postIDs {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	query := `SELECT post_id, COUNT(*)
+			FROM reposts
+			WHERE post_id IN (` + strings.Join(placeholders, ",") + `) 
+			GROUP BY post_id`
+	rows, err := h.DB.QueryContext(r.Context(), query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var posts int64
+		var count int
+
+		if err := rows.Scan(&posts, &count); err != nil {
+			return nil, err
+		}
+
+		counts[posts] = count
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return counts, nil
 }
 
 // maxThreadDepth はスレッドを辿る深さの上限（循環や極端に深いスレッドの保険）。
