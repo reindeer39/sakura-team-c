@@ -1,4 +1,5 @@
 CREATE INDEX idx_likes_post_created ON likes (post_id, created_at);
+CREATE INDEX idx_likes_created_post ON likes (created_at, post_id);
 CREATE INDEX idx_follows_followee_follower ON follows (followee_id, follower_id);
 CREATE INDEX idx_reposts_post_user ON reposts (post_id, user_id);
 
