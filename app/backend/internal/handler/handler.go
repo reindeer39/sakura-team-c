@@ -148,18 +148,31 @@ func (h *Handler) fetchPost(r *http.Request, postID, viewerID int64) (model.Post
 	return p, nil
 }
 
-// fetchRangePosts は posts テーブルから任意件取得し、関連データを付加する
-func (h *Handler) fetchRangePosts(r *http.Request, ids []int64 , viewerID int64) ([]model.Post, error) {
-	var p model.Post
-	var userID int64
-	err := h.DB.QueryRowContext(r.Context(),
-		`SELECT id, user_id, content, is_repost, original_post_id, parent_post_id, created_at
-		 FROM posts WHERE id = ?`,
-		postID,
-	).Scan(&p.ID, &userID, &p.Content, &p.IsRepost, &p.OriginalPostID, &p.ParentPostID, &p.CreatedAt)
-	if err != nil {
-		return p, err
+// fetchPostsInBatch は posts テーブルから任意件取得し、関連データを付加する
+func (h *Handler) fetchPostsInBatch(r *http.Request, ids []int64 , viewerID int64) ([]model.Post, error) {
+	if len(ids) == 0 {
+    	return posts, nil
 	}
+	var posts []model.Post
+	placeholders := make([]string, len(ids))
+	args := make([]any, len(ids))
+
+	for i, id := range ids {
+	    placeholders[i] = "?"
+	    args[i] = id
+	}
+
+	query := `
+		SELECT id, user_id, content, is_repost, original_post_id, parent_post_id, created_at
+		FROM posts
+		WHERE id IN (` + strings.Join(placeholders, ",") + `)
+		`
+	rows, err := h.DB.QueryContext(r.Context(),query,args...)
+	
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
 	author, err := h.fetchUser(r, userID)
 	if err != nil {
@@ -212,6 +225,7 @@ func (h *Handler) fetchRangePosts(r *http.Request, ids []int64 , viewerID int64)
 
 	return p, nil
 }
+
 // maxThreadDepth はスレッドを辿る深さの上限（循環や極端に深いスレッドの保険）。
 const maxThreadDepth = 50
 
