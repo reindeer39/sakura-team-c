@@ -148,6 +148,70 @@ func (h *Handler) fetchPost(r *http.Request, postID, viewerID int64) (model.Post
 	return p, nil
 }
 
+// fetchRangePosts は posts テーブルから任意件取得し、関連データを付加する
+func (h *Handler) fetchRangePosts(r *http.Request, ids []int64 , viewerID int64) ([]model.Post, error) {
+	var p model.Post
+	var userID int64
+	err := h.DB.QueryRowContext(r.Context(),
+		`SELECT id, user_id, content, is_repost, original_post_id, parent_post_id, created_at
+		 FROM posts WHERE id = ?`,
+		postID,
+	).Scan(&p.ID, &userID, &p.Content, &p.IsRepost, &p.OriginalPostID, &p.ParentPostID, &p.CreatedAt)
+	if err != nil {
+		return p, err
+	}
+
+	author, err := h.fetchUser(r, userID)
+	if err != nil {
+		return p, err
+	}
+	p.Author = author
+
+	h.DB.QueryRowContext(r.Context(),
+		`SELECT COUNT(*) FROM likes WHERE post_id = ?`, p.ID,
+	).Scan(&p.LikesCount)
+
+	h.DB.QueryRowContext(r.Context(),
+		`SELECT COUNT(*) FROM reposts WHERE post_id = ?`, p.ID,
+	).Scan(&p.RepostsCount)
+
+	p.RepliesCount = h.countReplies(r, p.ID, 0)
+
+	if viewerID > 0 {
+		h.DB.QueryRowContext(r.Context(),
+			`SELECT EXISTS(SELECT 1 FROM likes WHERE user_id = ? AND post_id = ?)`,
+			viewerID, p.ID,
+		).Scan(&p.LikedByMe)
+
+		h.DB.QueryRowContext(r.Context(),
+			`SELECT EXISTS(SELECT 1 FROM reposts WHERE user_id = ? AND post_id = ?)`,
+			viewerID, p.ID,
+		).Scan(&p.RepostedByMe)
+	}
+
+	// 返信の場合、返信先の投稿者を解決する
+	if p.ParentPostID != nil {
+		var username, displayName string
+		err := h.DB.QueryRowContext(r.Context(), `
+			SELECT u.username, u.display_name
+			FROM posts parent JOIN users u ON u.id = parent.user_id
+			WHERE parent.id = ?
+		`, *p.ParentPostID).Scan(&username, &displayName)
+		if err == nil {
+			p.ReplyToUsername = &username
+			p.ReplyToDisplayName = &displayName
+		}
+	}
+
+	// リポストの場合、何をリポストしたか分かるように元投稿を解決する
+	if p.IsRepost && p.OriginalPostID != nil && *p.OriginalPostID != p.ID {
+		if original, err := h.fetchPost(r, *p.OriginalPostID, viewerID); err == nil {
+			p.OriginalPost = &original
+		}
+	}
+
+	return p, nil
+}
 // maxThreadDepth はスレッドを辿る深さの上限（循環や極端に深いスレッドの保険）。
 const maxThreadDepth = 50
 
