@@ -9,23 +9,6 @@ import (
 	"time"
 )
 
-type responseWriter struct {
-	http.ResponseWriter
-	status int
-	size   int64
-}
-
-func (rw *responseWriter) WriteHeader(code int) {
-	rw.status = code
-	rw.ResponseWriter.WriteHeader(code)
-}
-
-func (rw *responseWriter) Write(b []byte) (int, error) {
-	n, err := rw.ResponseWriter.Write(b)
-	rw.size += int64(n)
-	return n, err
-}
-
 var (
 	slowRequestThreshold = 200 * time.Millisecond
 )
@@ -41,9 +24,8 @@ func init() {
 func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		rw := &responseWriter{ResponseWriter: w, status: http.StatusOK}
 
-		next.ServeHTTP(rw, r)
+		next.ServeHTTP(w, r)
 
 		duration := time.Since(start)
 		durationMs := duration.Milliseconds()
@@ -51,17 +33,13 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 		attrs := []any{
 			"method", r.Method,
 			"path", r.URL.Path,
-			"status", rw.status,
 			"duration_ms", durationMs,
-			"size", rw.size,
 		}
 
 		// SSEなどのストリーミングエンドポイントはスローログ判定から除外
 		isStream := strings.HasSuffix(r.URL.Path, "/stream")
 
-		if rw.status >= http.StatusInternalServerError {
-			slog.Error("http request error", attrs...)
-		} else if !isStream && duration >= slowRequestThreshold {
+		if !isStream && duration >= slowRequestThreshold {
 			attrs = append(attrs, "threshold_ms", slowRequestThreshold.Milliseconds())
 			slog.Warn("slow http request", attrs...)
 		} else {
