@@ -81,10 +81,12 @@ func (h *Handler) fetchUser(r *http.Request, userID int64) (model.User, error) {
 	}
 
 	if viewerID, ok := h.currentUserID(r); ok && viewerID != u.ID {
-		h.DB.QueryRowContext(r.Context(),
+		if err := h.DB.QueryRowContext(r.Context(),
 			`SELECT EXISTS(SELECT 1 FROM follows WHERE follower_id = ? AND followee_id = ?)`,
 			viewerID, u.ID,
-		).Scan(&u.FollowedByMe)
+		).Scan(&u.FollowedByMe); err != nil {
+			return u, err
+		}
 	}
 
 	return u, nil
@@ -386,15 +388,19 @@ func (h *Handler) fetchPost(r *http.Request, postID, viewerID int64) (model.Post
 	p.RepliesCount = h.countReplies(r, p.ID, 0)
 
 	if viewerID > 0 {
-		h.DB.QueryRowContext(r.Context(),
+		if err := h.DB.QueryRowContext(r.Context(),
 			`SELECT EXISTS(SELECT 1 FROM likes WHERE user_id = ? AND post_id = ?)`,
 			viewerID, p.ID,
-		).Scan(&p.LikedByMe)
+		).Scan(&p.LikedByMe); err != nil {
+			return p, err
+		}
 
-		h.DB.QueryRowContext(r.Context(),
+		if err := h.DB.QueryRowContext(r.Context(),
 			`SELECT EXISTS(SELECT 1 FROM reposts WHERE user_id = ? AND post_id = ?)`,
 			viewerID, p.ID,
-		).Scan(&p.RepostedByMe)
+		).Scan(&p.RepostedByMe); err != nil {
+			return p, err
+		}
 	}
 
 	// 返信の場合、返信先の投稿者を解決する
