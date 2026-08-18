@@ -1,7 +1,8 @@
 package main
 
 import (
-	"log"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 
@@ -12,6 +13,7 @@ import (
 )
 
 func main() {
+
 	db := appdb.New()
 	defer db.Close()
 
@@ -25,15 +27,23 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	// CORS ミドルウェア
-	mux.Handle("/", corsMiddleware(routes(h, auth)))
+	//  ミドルウェア
+	middlewares := middleware.LoggingMiddleware(corsMiddleware(routes(h, auth)))
+	mux.Handle("/", middlewares)
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
-	log.Printf("starting server on :%s", port)
-	log.Fatal(http.ListenAndServe(":"+port, mux))
+	slog.Info(fmt.Sprintf("starting server on :%s", port))
+
+	err := http.ListenAndServe(":"+port, mux)
+
+	if err != nil {
+		slog.Error("Failed to start server", "error", err, "port", port)
+		os.Exit(1)
+	}
+
 }
 
 func routes(h *handler.Handler, auth *middleware.Auth) http.Handler {
