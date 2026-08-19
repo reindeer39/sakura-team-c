@@ -22,6 +22,8 @@ type endpointBenchmarkTarget struct {
 	method     string
 	path       string
 	authClient *http.Client
+	body       []byte
+	setup      func()
 }
 
 type benchmarkStat struct {
@@ -91,6 +93,10 @@ func TestBenchmark_HeavyEndpoints(t *testing.T) {
 	if len(seedRes.UserIDs) > 0 {
 		targetUserID = seedRes.UserIDs[0]
 	}
+	var anotherUserID int64 = 2
+	if len(seedRes.UserIDs) > 1 {
+		anotherUserID = seedRes.UserIDs[1]
+	}
 
 	var normalPostID int64 = 1
 	if len(seedRes.PostIDs) > 0 {
@@ -104,6 +110,13 @@ func TestBenchmark_HeavyEndpoints(t *testing.T) {
 	`).Scan(&threadPostID)
 	if err != nil || threadPostID == 0 {
 		threadPostID = normalPostID
+	}
+
+	// ページネーション用カーソルの取得 (最新投稿のIDなど)
+	var cursorPostID int64
+	err = db.QueryRow(`SELECT id FROM posts ORDER BY created_at DESC, id DESC LIMIT 1 OFFSET 20`).Scan(&cursorPostID)
+	if err != nil {
+		cursorPostID = normalPostID
 	}
 
 	targets := []endpointBenchmarkTarget{
@@ -126,88 +139,165 @@ func TestBenchmark_HeavyEndpoints(t *testing.T) {
 			authClient: authClient,
 		},
 		{
-			name:       "4. ユーザー投稿一覧",
+			name:       "4. 最新タイムライン(ページ2)",
+			method:     "GET",
+			path:       fmt.Sprintf("/posts?feed=latest&limit=20&cursor=%d", cursorPostID),
+			authClient: authClient,
+		},
+		{
+			name:       "5. ユーザー投稿一覧",
 			method:     "GET",
 			path:       fmt.Sprintf("/users/%d/posts", targetUserID),
 			authClient: anonClient,
 		},
 		{
-			name:       "5. スレッドツリー取得",
+			name:       "6. スレッドツリー取得",
 			method:     "GET",
 			path:       fmt.Sprintf("/posts/%d/thread", threadPostID),
 			authClient: anonClient,
 		},
 		{
-			name:       "6. 投稿単体取得",
+			name:       "7. 投稿単体取得",
 			method:     "GET",
 			path:       fmt.Sprintf("/posts/%d", normalPostID),
 			authClient: anonClient,
 		},
 		{
-			name:       "7. 投稿いいね一覧",
+			name:       "8. 投稿いいね一覧",
 			method:     "GET",
 			path:       fmt.Sprintf("/posts/%d/likes", normalPostID),
 			authClient: anonClient,
 		},
 		{
-			name:       "8. トレンド一覧",
+			name:       "9. トレンド一覧",
 			method:     "GET",
 			path:       "/trending",
 			authClient: anonClient,
 		},
 		{
-			name:       "9. 投稿検索",
+			name:       "10. 投稿検索 (キーワードヒット)",
 			method:     "GET",
 			path:       "/search?q=さくら&type=posts",
 			authClient: anonClient,
 		},
 		{
-			name:       "10. ユーザー検索",
+			name:       "11. 投稿検索 (0件ヒット)",
+			method:     "GET",
+			path:       "/search?q=nonexistentquery999&type=posts",
+			authClient: anonClient,
+		},
+		{
+			name:       "12. ユーザー検索",
 			method:     "GET",
 			path:       "/search?q=user&type=users",
 			authClient: anonClient,
 		},
 		{
-			name:       "11. 自分のプロフィール",
+			name:       "13. 自分のプロフィール",
 			method:     "GET",
 			path:       "/me",
 			authClient: authClient,
 		},
 		{
-			name:       "12. ユーザープロフィール(足跡記録)",
+			name:       "14. ユーザープロフィール(足跡記録)",
 			method:     "GET",
-			path:       fmt.Sprintf("/profile/%d", targetUserID),
+			path:       fmt.Sprintf("/profile/%d", anotherUserID),
 			authClient: authClient,
 		},
 		{
-			name:       "13. フォロワー一覧",
+			name:       "15. プロフィール更新 (PUT)",
+			method:     "PUT",
+			path:       "/profile",
+			authClient: authClient,
+			body:       []byte(`{"display_name":"更新ユーザー","bio":"ベンチマーク更新テスト"}`),
+		},
+		{
+			name:       "16. フォロワー一覧",
 			method:     "GET",
 			path:       fmt.Sprintf("/users/%d/followers", targetUserID),
 			authClient: anonClient,
 		},
 		{
-			name:       "14. フォロー中一覧",
+			name:       "17. フォロー中一覧",
 			method:     "GET",
 			path:       fmt.Sprintf("/users/%d/following", targetUserID),
 			authClient: anonClient,
 		},
 		{
-			name:       "15. 足跡一覧",
+			name:       "18. 足跡一覧",
 			method:     "GET",
 			path:       "/me/footprints",
 			authClient: authClient,
 		},
 		{
-			name:       "16. 通知一覧",
+			name:       "19. 通知一覧",
 			method:     "GET",
 			path:       "/notifications",
 			authClient: authClient,
 		},
 		{
-			name:       "17. 未読通知数",
+			name:       "20. 未読通知数",
 			method:     "GET",
 			path:       "/notifications/unread_count",
 			authClient: authClient,
+		},
+		{
+			name:       "21. 通知既読化 (POST)",
+			method:     "POST",
+			path:       "/notifications/read",
+			authClient: authClient,
+		},
+		{
+			name:       "22. いいね作成 (POST)",
+			method:     "POST",
+			path:       "/likes",
+			authClient: authClient,
+			body:       []byte(fmt.Sprintf(`{"post_id":%d}`, normalPostID)),
+		},
+		{
+			name:       "23. いいね解除 (DELETE)",
+			method:     "DELETE",
+			path:       fmt.Sprintf("/likes/%d", normalPostID),
+			authClient: authClient,
+		},
+		{
+			name:       "24. リポスト作成 (POST)",
+			method:     "POST",
+			path:       "/reposts",
+			authClient: authClient,
+			body:       []byte(fmt.Sprintf(`{"post_id":%d}`, normalPostID)),
+		},
+		{
+			name:       "25. リポスト解除 (DELETE)",
+			method:     "DELETE",
+			path:       fmt.Sprintf("/reposts/%d", normalPostID),
+			authClient: authClient,
+		},
+		{
+			name:       "26. ユーザーフォロー (POST)",
+			method:     "POST",
+			path:       fmt.Sprintf("/users/%d/follow", anotherUserID),
+			authClient: authClient,
+		},
+		{
+			name:       "27. ユーザーフォロー解除 (DELETE)",
+			method:     "DELETE",
+			path:       fmt.Sprintf("/users/%d/follow", anotherUserID),
+			authClient: authClient,
+		},
+		{
+			name:       "28. 投稿作成 (POST)",
+			method:     "POST",
+			path:       "/posts",
+			authClient: authClient,
+			body:       []byte(`{"content":"ベンチマーク新規投稿 #test"}`),
+		},
+		{
+			name:       "29. 返信作成 (POST)",
+			method:     "POST",
+			path:       "/replies",
+			authClient: authClient,
+			body:       []byte(fmt.Sprintf(`{"post_id":%d,"content":"ベンチマーク返信"}`, normalPostID)),
 		},
 	}
 
@@ -222,9 +312,18 @@ func TestBenchmark_HeavyEndpoints(t *testing.T) {
 		reqURL := ts.URL + target.path
 
 		// ウォームアップ（初回クエリコンパイル・バッファロード等）
-		warmupReq, err := http.NewRequest(target.method, reqURL, nil)
+		var warmupBody *bytes.Reader
+		if target.body != nil {
+			warmupBody = bytes.NewReader(target.body)
+		} else {
+			warmupBody = bytes.NewReader(nil)
+		}
+		warmupReq, err := http.NewRequest(target.method, reqURL, warmupBody)
 		if err != nil {
 			t.Fatalf("ウォームアップリクエスト作成失敗 (%s): %v", target.name, err)
+		}
+		if target.body != nil {
+			warmupReq.Header.Set("Content-Type", "application/json")
 		}
 		warmupResp, err := target.authClient.Do(warmupReq)
 		if err != nil {
@@ -239,9 +338,18 @@ func TestBenchmark_HeavyEndpoints(t *testing.T) {
 		var lastStatusCode int
 
 		for i := 0; i < iterations; i++ {
-			req, err := http.NewRequest(target.method, reqURL, nil)
+			var bodyReader *bytes.Reader
+			if target.body != nil {
+				bodyReader = bytes.NewReader(target.body)
+			} else {
+				bodyReader = bytes.NewReader(nil)
+			}
+			req, err := http.NewRequest(target.method, reqURL, bodyReader)
 			if err != nil {
 				t.Fatalf("リクエスト作成失敗: %v", err)
+			}
+			if target.body != nil {
+				req.Header.Set("Content-Type", "application/json")
 			}
 
 			start := time.Now()
