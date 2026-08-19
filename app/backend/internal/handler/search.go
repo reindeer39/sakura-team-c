@@ -70,7 +70,7 @@ func (h *Handler) searchPosts(w http.ResponseWriter, r *http.Request, q string, 
 
 	var total int
 	h.DB.QueryRowContext(r.Context(),
-		`SELECT COUNT(*) FROM posts WHERE content LIKE ?`, pattern,
+		`SELECT COUNT(*) FROM posts WHERE content LIKE ? ESCAPE '\\'`, pattern,
 	).Scan(&total)
 
 	h.respondJSON(w, http.StatusOK, map[string]any{
