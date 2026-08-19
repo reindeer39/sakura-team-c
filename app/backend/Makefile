@@ -103,7 +103,7 @@ db-root: ## MariaDB クライアントに root ユーザーで接続
 .PHONY: test-db-up
 test-db-up: ## テスト用DBを起動してヘルスチェック待機
 	@echo "テスト用DBを起動中 (ポート 3307)..."
-	docker compose -f docker-compose.test.yml up -d db-test
+	docker compose -f docker-compose.test.yml up -d db-test --force-recreate
 	@until docker compose -f docker-compose.test.yml ps db-test --format json | grep -q '"Health":"healthy"'; do \
 		sleep 1; \
 	done
