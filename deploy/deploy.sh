@@ -8,7 +8,7 @@ fi
 
 IMAGE="$1"
 DEPLOY_DIR="/opt/sakuravel"
-COMPOSE_FILE="${DEPLOY_DIR}/compose.reg.yml"
+COMPOSE_FILE="${DEPLOY_DIR}/compose.prod.yaml"
 
 
 if [ ! -f "${COMPOSE_FILE}" ]; then

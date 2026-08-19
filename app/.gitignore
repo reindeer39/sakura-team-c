@@ -35,4 +35,4 @@ node_modules/
 next-env.d.ts
 tsconfig.tsbuildinfo
 
-docker-compose.override.yml
+compose.override.yaml
