@@ -9,7 +9,6 @@ fi
 IMAGE="$1"
 DEPLOY_DIR="/opt/sakuravel"
 COMPOSE_FILE="${DEPLOY_DIR}/compose.reg.yml"
-ENV_FILE="/opt/sakuravel/backend.env"
 
 
 if [ ! -f "${COMPOSE_FILE}" ]; then
@@ -43,4 +42,4 @@ for service in api frontend caddy; do
 done
 
 echo "Deployment completed: ${IMAGE}"
-docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" ps
+docker compose -f "${COMPOSE_FILE}" ps
