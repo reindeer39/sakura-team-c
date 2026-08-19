@@ -1,11 +1,15 @@
 services:
   api:
+    image: ${BACKEND_IMAGE:-sakuravel-backend:local}
     build: .
     ports:
       - "8080:8080"
     environment:
-      - DATABASE_URL=sakuravel:password@tcp(db:3306)/sakuravel?parseTime=true&charset=utf8mb4
-      - PORT=8080
+      DATABASE_URL: ${DATABASE_URL:-sakuravel:password@tcp(db:3306)/sakuravel?parseTime=true&charset=utf8mb4}
+      PORT: ${PORT:-8080}
+      ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:-https://teamc.intern28.sakuraha.jp}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      SLOW_REQUEST_THRESHOLD_MS: ${SLOW_REQUEST_THRESHOLD_MS:-}
     depends_on:
       db:
         condition: service_healthy
@@ -34,6 +38,8 @@ services:
     platform: linux/amd64
     ports:
       - "3000:3000"
+    environment:
+      API_URL: ${API_URL:-https://teamc.intern28.sakuraha.jp/api}
     depends_on:
       - api
     restart: on-failure

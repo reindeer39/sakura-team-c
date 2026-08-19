@@ -9,6 +9,9 @@ on:
       - "app/backend/go.mod"
       - "app/backend/go.sum"
       - "app/backend/Dockerfile"
+      - "app/backend/docker-compose.yml"
+      - "app/backend/Caddyfile"
+      - "app/backend/migrations/**"
       - "deploy/deploy.sh"
       - ".github/workflows/cd.yml"
 
@@ -79,14 +82,19 @@ jobs:
             "${DEPLOY_USER}@${DEPLOY_HOST}" \
             "mkdir -p /opt/sakuravel"
 
-      - name: Upload deployment script
+      - name: Upload deployment files
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
         run: |
           scp -P "$DEPLOY_PORT" -i ~/.ssh/deploy_key \
             deploy/deploy.sh \
-            "${DEPLOY_USER}@${DEPLOY_HOST}:/opt/sakuravel/deploy.sh"
+            app/backend/docker-compose.yml \
+            app/backend/Caddyfile \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:/opt/sakuravel/"
+          scp -r -P "$DEPLOY_PORT" -i ~/.ssh/deploy_key \
+            app/backend/migrations \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:/opt/sakuravel/"
 
       - name: Login to registry from VM
         env:
