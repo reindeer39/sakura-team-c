@@ -46,6 +46,31 @@ func New() *sql.DB {
 	return db
 }
 
+// RunMigrationsWithDB applies all pending database migrations on the given *sql.DB instance.
+func RunMigrationsWithDB(db *sql.DB) error {
+	driver, err := migratemysql.WithInstance(db, &migratemysql.Config{})
+	if err != nil {
+		return fmt.Errorf("failed to create mysql driver: %w", err)
+	}
+
+	sourceDriver, err := iofs.New(migrations.FS, ".")
+	if err != nil {
+		return fmt.Errorf("failed to create iofs source driver: %w", err)
+	}
+
+	m, err := migrate.NewWithInstance("iofs", sourceDriver, "mysql", driver)
+	if err != nil {
+		return fmt.Errorf("failed to create migrate instance: %w", err)
+	}
+
+	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return fmt.Errorf("migration failed: %w", err)
+	}
+
+	log.Println("database migrations applied successfully")
+	return nil
+}
+
 // RunMigrations applies all pending database migrations using golang-migrate.
 // It creates a dedicated temporary connection with multiStatements=true to execute migrations safely.
 func RunMigrations() error {
@@ -70,25 +95,5 @@ func RunMigrations() error {
 		}
 	}()
 
-	driver, err := migratemysql.WithInstance(migrationDB, &migratemysql.Config{})
-	if err != nil {
-		return fmt.Errorf("failed to create mysql driver: %w", err)
-	}
-
-	sourceDriver, err := iofs.New(migrations.FS, ".")
-	if err != nil {
-		return fmt.Errorf("failed to create iofs source driver: %w", err)
-	}
-
-	m, err := migrate.NewWithInstance("iofs", sourceDriver, "mysql", driver)
-	if err != nil {
-		return fmt.Errorf("failed to create migrate instance: %w", err)
-	}
-
-	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		return fmt.Errorf("migration failed: %w", err)
-	}
-
-	log.Println("database migrations applied successfully")
-	return nil
+	return RunMigrationsWithDB(migrationDB)
 }

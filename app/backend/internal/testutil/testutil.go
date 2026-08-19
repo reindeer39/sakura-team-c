@@ -5,12 +5,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
-	"sort"
 	"strings"
 	"testing"
 	"time"
 
+	appdb "sakuravel/internal/db"
 	"sakuravel/internal/handler"
 	"sakuravel/internal/middleware"
 	"sakuravel/internal/realtime"
@@ -70,7 +69,7 @@ func SetupTestDB(t *testing.T) *sql.DB {
 	return db
 }
 
-// ResetAndMigrateDB はデータベースを初期化し、migrations/ 配下の SQL を再適用する
+// ResetAndMigrateDB はデータベースを初期化し、golang-migrate を使ってスキーマを適用する
 func ResetAndMigrateDB(t *testing.T, db *sql.DB) {
 	t.Helper()
 
@@ -84,39 +83,10 @@ func ResetAndMigrateDB(t *testing.T, db *sql.DB) {
 		t.Fatalf("failed to reset database: %v", err)
 	}
 
-	// 2. migrations ディレクトリを探索
-	migrationsDir := findMigrationsDir()
-	files, err := filepath.Glob(filepath.Join(migrationsDir, "*.sql"))
-	if err != nil || len(files) == 0 {
-		t.Fatalf("failed to find migration files in %s: %v", migrationsDir, err)
+	// 2. golang-migrate によるマイグレーション実行
+	if err := appdb.RunMigrationsWithDB(db); err != nil {
+		t.Fatalf("failed to run migrations: %v", err)
 	}
-	sort.Strings(files)
-
-	// 3. 各マイグレーションファイルを順次実行
-	for _, file := range files {
-		content, err := os.ReadFile(file)
-		if err != nil {
-			t.Fatalf("failed to read migration file %s: %v", file, err)
-		}
-		if _, err := db.Exec(string(content)); err != nil {
-			t.Fatalf("failed to execute migration %s: %v", filepath.Base(file), err)
-		}
-	}
-}
-
-func findMigrationsDir() string {
-	candidates := []string{
-		"migrations",
-		"../migrations",
-		"../../migrations",
-		"../../../migrations",
-	}
-	for _, c := range candidates {
-		if fi, err := os.Stat(c); err == nil && fi.IsDir() {
-			return c
-		}
-	}
-	return "migrations"
 }
 
 func SetupTestServer(t *testing.T, db *sql.DB) (*httptest.Server, *handler.Handler) {
