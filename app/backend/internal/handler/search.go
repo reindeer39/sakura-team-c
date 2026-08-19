@@ -82,10 +82,10 @@ func (h *Handler) searchPosts(w http.ResponseWriter, r *http.Request, q string, 
 }
 
 func (h *Handler) searchUsers(w http.ResponseWriter, r *http.Request, q string, page, perPage, offset int) {
-	pattern := "%" + q + "%"
+	pattern := "%" + escapeLike(q) + "%"
 	rows, err := h.DB.QueryContext(r.Context(), `
 		SELECT id FROM users
-		WHERE username LIKE ? OR display_name LIKE ?
+		WHERE username LIKE ? ESCAPE '\\' OR display_name LIKE ? ESCAPE '\\'
 		ORDER BY id
 		LIMIT ? OFFSET ?
 	`, pattern, pattern, perPage, offset)
@@ -112,7 +112,7 @@ func (h *Handler) searchUsers(w http.ResponseWriter, r *http.Request, q string, 
 
 	var total int
 	h.DB.QueryRowContext(r.Context(),
-		`SELECT COUNT(*) FROM users WHERE username LIKE ? OR display_name LIKE ?`, pattern, pattern,
+		`SELECT COUNT(*) FROM users WHERE username LIKE ? ESCAPE '\\' OR display_name LIKE ? ESCAPE '\\'`, pattern, pattern,
 	).Scan(&total)
 
 	h.respondJSON(w, http.StatusOK, map[string]any{
