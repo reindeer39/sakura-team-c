@@ -504,6 +504,20 @@ func (h *Handler) fetchPostsInBatch(r *http.Request, ids []int64, viewerID int64
 		return nil, err
 	}
 
+	var likedByMe map[int64]bool
+	var repostedByMe map[int64]bool
+	if viewerID > 0 {
+		likedByMe, err = h.fetchLikedByMeInBatch(r, ids)
+		if err != nil {
+			return nil, err
+		}
+
+		repostedByMe, err = h.fetchRepostedByMeInBatch(r, ids)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	for i := range posts {
 		p := &posts[i]
 
@@ -512,6 +526,9 @@ func (h *Handler) fetchPostsInBatch(r *http.Request, ids []int64, viewerID int64
 		p.Author = authors[userID]
 		p.LikesCount = likeCounts[p.ID]
 		p.RepostsCount = repostCounts[p.ID]
+
+		p.LikedByMe = likedByMe[p.ID]
+		p.RepostedByMe = repostedByMe[p.ID]
 	}
 
 	postByID := make(map[int64]model.Post, len(posts))
@@ -612,6 +629,114 @@ func (h *Handler) fetchRepostsCountsInBatch(r *http.Request, postIDs []int64) (m
 	}
 
 	return counts, nil
+}
+
+//USERがこのポスト達をすでに良いねしているか
+func (h *Handler) fetchLikedByMeInBatch(r *http.Request, postIDs []int64) (map[int64]bool, error) {
+	liked := make(map[int64]bool)
+	if len(postIDs) == 0 {
+		return liked, nil
+	}
+	viewerID, ok := h.currentUserID(r)
+	if !ok {
+		return liked, nil
+	}
+	placeholders := make([]string, len(postIDs))
+	args := make([]any, 0, len(postIDs)+1)
+
+	args = append(args, viewerID)
+
+	for i, id := range postIDs {
+		placeholders[i] = "?"
+		args = append(args, id)
+
+		// 最初は全員false
+		liked[id] = false
+	}
+
+	query := `
+        SELECT post_id
+        FROM likes
+        WHERE user_id = ?
+          AND post_id IN (` + strings.Join(placeholders, ",") + `)
+    `
+
+	rows, err := h.DB.QueryContext(r.Context(), query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	for rows.Next() {
+		var userID int64
+
+		if err := rows.Scan(&userID); err != nil {
+			return nil, err
+		}
+
+		liked[userID] = true
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return liked, nil
+}
+
+//USERがこのポスト達をすでにリポストしているか
+func (h *Handler) fetchRepostedByMeInBatch(r *http.Request, postIDs []int64) (map[int64]bool, error) {
+	reposted := make(map[int64]bool)
+	if len(postIDs) == 0 {
+		return reposted, nil
+	}
+	viewerID, ok := h.currentUserID(r)
+	if !ok {
+		return reposted, nil
+	}
+	placeholders := make([]string, len(postIDs))
+	args := make([]any, 0, len(postIDs)+1)
+
+	args = append(args, viewerID)
+
+	for i, id := range postIDs {
+		placeholders[i] = "?"
+		args = append(args, id)
+
+		// 最初は全員false
+		reposted[id] = false
+	}
+
+	query := `
+        SELECT post_id
+        FROM reposts
+        WHERE user_id = ?
+          AND post_id IN (` + strings.Join(placeholders, ",") + `)
+    `
+
+	rows, err := h.DB.QueryContext(r.Context(), query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	for rows.Next() {
+		var PostID int64
+
+		if err := rows.Scan(&PostID); err != nil {
+			return nil, err
+		}
+
+		reposted[PostID] = true
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return reposted, nil
 }
 
 // maxThreadDepth はスレッドを辿る深さの上限（循環や極端に深いスレッドの保険）。
