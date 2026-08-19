@@ -115,4 +115,9 @@ test-db-down: ## テスト用DBを停止・ボリューム削除
 
 .PHONY: test
 test: test-db-up ## テスト用DBを起動してGoのテストを実行
-	DATABASE_URL="$(TEST_DATABASE_URL)" go test -v -race ./...
+	DATABASE_URL="$(TEST_DATABASE_URL)" go test -v -short -race ./...
+
+.PHONY: bench
+bench: test-db-up ## テスト用DBを起動し、シード投入後の重いエンドポイント応答時間を計測 (例: make bench SCALE=1 ITERATIONS=10)
+	DATABASE_URL="$(TEST_DATABASE_URL)" BENCH_SCALE="$(SCALE)" BENCH_ITERATIONS="$(ITERATIONS)" go test -v -run ^TestBenchmark_HeavyEndpoints$$ ./internal/server/ -timeout 30m
+
