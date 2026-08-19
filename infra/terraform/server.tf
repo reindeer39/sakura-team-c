@@ -23,7 +23,10 @@ resource "sakura_server" "docker_host" {
   # 共有セグメント接続
   network_interface = [
     { upstream = "shared" },
-    { upstream = sakura_vswitch.private_net.id },
+    {
+      upstream         = sakura_vswitch.private_net.id
+      packet_filter_id = sakura_packet_filter.intern-team-c.id
+    },
   ]
 
   # cloud-init user-data

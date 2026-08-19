@@ -1,0 +1,15 @@
+teamc.intern28.sakuraha.jp {
+	# フロントエンド自身の Next.js ルート。handle_path より前に置くこと
+	handle /api/config* {
+		reverse_proxy frontend:3000
+	}
+
+	# /api プレフィックスを剥がして Go バックエンドへ
+	handle_path /api/* {
+		reverse_proxy api:8080
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+}

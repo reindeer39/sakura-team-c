@@ -1,11 +1,15 @@
 services:
   api:
+    image: ${BACKEND_IMAGE:-sakuravel-backend:local}
     build: .
     ports:
       - "8080:8080"
     environment:
-      - DATABASE_URL=sakuravel:password@tcp(db:3306)/sakuravel?parseTime=true&charset=utf8mb4
-      - PORT=8080
+      DATABASE_URL: ${DATABASE_URL:-sakuravel:password@tcp(db:3306)/sakuravel?parseTime=true&charset=utf8mb4}
+      PORT: ${PORT:-8080}
+      ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:-https://teamc.intern28.sakuraha.jp}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      SLOW_REQUEST_THRESHOLD_MS: ${SLOW_REQUEST_THRESHOLD_MS:-}
     depends_on:
       db:
         condition: service_healthy
@@ -29,16 +33,30 @@ services:
       retries: 5
 
   frontend:
-    image: <作成したコンテナレジストリのホスト名>/intern2026-app-frontend:latest
+    image: sakura-intern8.sakuracr.jp/intern2026-app-frontend:latest
     platform: linux/amd64
     ports:
       - "3000:3000"
+    environment:
+      API_URL: ${API_URL:-https://teamc.intern28.sakuraha.jp/api}
     depends_on:
       - api
     restart: on-failure
+  
+  caddy:
+    image: caddy:2.8.5
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - api
+      - frontend
 
 volumes:
   mariadb_data:
+  caddy_data:
 
 networks:
   default:
