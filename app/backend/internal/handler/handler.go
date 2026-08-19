@@ -631,7 +631,7 @@ func (h *Handler) fetchRepostsCountsInBatch(r *http.Request, postIDs []int64) (m
 	return counts, nil
 }
 
-//USERがこのポスト達をすでに良いねしているか
+// USERがこのポスト達をすでに良いねしているか
 func (h *Handler) fetchLikedByMeInBatch(r *http.Request, postIDs []int64) (map[int64]bool, error) {
 	liked := make(map[int64]bool)
 	if len(postIDs) == 0 {
@@ -685,7 +685,7 @@ func (h *Handler) fetchLikedByMeInBatch(r *http.Request, postIDs []int64) (map[i
 	return liked, nil
 }
 
-//USERがこのポスト達をすでにリポストしているか
+// USERがこのポスト達をすでにリポストしているか
 func (h *Handler) fetchRepostedByMeInBatch(r *http.Request, postIDs []int64) (map[int64]bool, error) {
 	reposted := make(map[int64]bool)
 	if len(postIDs) == 0 {
