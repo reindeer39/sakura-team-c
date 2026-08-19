@@ -9,7 +9,7 @@ on:
       - "app/backend/go.mod"
       - "app/backend/go.sum"
       - "app/backend/Dockerfile"
-      - "app/backend/compose.reg.yml"
+      - "app/backend/compose.prod.yaml"
       - "app/backend/Caddyfile"
       - "app/backend/migrations/**"
       - "deploy/deploy.sh"
@@ -89,7 +89,7 @@ jobs:
         run: |
           scp -P "$DEPLOY_PORT" -i ~/.ssh/deploy_key \
             deploy/deploy.sh \
-            app/backend/compose.reg.yml \
+            app/backend/compose.prod.yaml \
             app/backend/Caddyfile \
             "${DEPLOY_USER}@${DEPLOY_HOST}:/opt/sakuravel/"
           scp -r -P "$DEPLOY_PORT" -i ~/.ssh/deploy_key \

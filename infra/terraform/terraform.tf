@@ -10,6 +10,8 @@ terraform {
       version = "~> 3.8"
     }
   }
+
+  backend "s3" {}
 }
 
 provider "sakura" {

@@ -145,7 +145,7 @@ docker run --rm \
 | `DATABASE_URL` | MariaDB 接続文字列 | 空文字 |
 | `PORT` | API サーバーがリッスンするポート | `8080` |
 | `ALLOWED_ORIGIN` | CORS で許可するフロントエンドのオリジン | `http://localhost:3000` |
-| `COOKIE_SECURE` | `true` にするとセッションCookieに `Secure` + `SameSite=None` を付与する。フロントエンドとバックエンドが別オリジン（別サブドメイン等）で動く構成では必須 | `false` |
+| `COOKIE_SECURE` | `true` にするとセッションCookieに `Secure` + `SameSite=Strict` を付与する。フロントエンドとバックエンドが別オリジン（別サブドメイン等）で動く構成では必須 | `false` |
 
 ※ PORTを変更する場合は下記の`API_URL`も変更する必要があります
 

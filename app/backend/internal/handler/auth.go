@@ -28,7 +28,7 @@ func (h *Handler) sessionCookie(value string, expiresAt time.Time) *http.Cookie 
 	}
 	if h.CookieSecure {
 		c.Secure = true
-		c.SameSite = http.SameSiteNoneMode
+		c.SameSite = http.SameSiteStrictMode
 	}
 	return c
 }
