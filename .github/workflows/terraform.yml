@@ -59,6 +59,7 @@ jobs:
             -backend-config="key=sakura-team-c/terraform.tfstate" \
             -backend-config="region=${{ secrets.TF_STATE_REGION }}" \
             -backend-config='endpoints={s3="${{ secrets.TF_STATE_ENDPOINT }}"}' \
+            -backend-config="skip_region_validation=true" \
             -backend-config="skip_credentials_validation=true" \
             -backend-config="skip_requesting_account_id=true" \
             -backend-config="skip_metadata_api_check=true" \
