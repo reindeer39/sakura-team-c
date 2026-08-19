@@ -477,11 +477,11 @@ func (h *Handler) fetchPostsInBatch(r *http.Request, ids []int64, viewerID int64
 			return nil, err
 		}
 		if p.ParentPostID != nil {
-		    parentPostIDs = append(parentPostIDs, *p.ParentPostID)
+			parentPostIDs = append(parentPostIDs, *p.ParentPostID)
 		}
 
 		if p.IsRepost && p.OriginalPostID != nil && *p.OriginalPostID != p.ID {
-		    originalPostIDs = append(originalPostIDs, *p.OriginalPostID)
+			originalPostIDs = append(originalPostIDs, *p.OriginalPostID)
 		}
 
 		postUserIDs[p.ID] = userID
@@ -499,13 +499,13 @@ func (h *Handler) fetchPostsInBatch(r *http.Request, ids []int64, viewerID int64
 	}
 	originalPosts, err := h.fetchPostsInBatch(r, originalPostIDs, viewerID)
 	if err != nil {
-	    return nil, err
+		return nil, err
 	}
 	originalPostByID := make(map[int64]model.Post, len(originalPosts))
 	for _, original := range originalPosts {
-	    originalPostByID[original.ID] = original
+		originalPostByID[original.ID] = original
 	}
-	
+
 	replyTargets, err := h.fetchReplyTargetsInBatch(r, parentPostIDs)
 	if err != nil {
 		return nil, err
@@ -561,12 +561,12 @@ func (h *Handler) fetchPostsInBatch(r *http.Request, ids []int64, viewerID int64
 			}
 		}
 		if p.IsRepost &&
-		    p.OriginalPostID != nil &&
-		    *p.OriginalPostID != p.ID {		
+			p.OriginalPostID != nil &&
+			*p.OriginalPostID != p.ID {
 
-		    if original, ok := originalPostByID[*p.OriginalPostID]; ok {
-		        p.OriginalPost = &original
-		    }
+			if original, ok := originalPostByID[*p.OriginalPostID]; ok {
+				p.OriginalPost = &original
+			}
 		}
 		p.RepliesCount = h.countReplies(r, p.ID, 0)
 	}
