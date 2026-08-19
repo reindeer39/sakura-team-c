@@ -92,7 +92,7 @@ func (h *Handler) fetchUser(r *http.Request, userID int64) (model.User, error) {
 	return u, nil
 }
 
-// fetchUsersInBatch は Users テーブルから任意件取得し、関連データを付加する
+// fetchUsersInBatch は Usersテーブルから指定されたユーザIDからユーザ情報達を出力する
 func (h *Handler) fetchUsersInBatch(r *http.Request, userIDs []int64) (map[int64]model.User, error) {
 	if len(userIDs) == 0 {
 		return nil, nil
