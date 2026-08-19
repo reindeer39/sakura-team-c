@@ -103,15 +103,15 @@ db-root: ## MariaDB クライアントに root ユーザーで接続
 .PHONY: test-db-up
 test-db-up: ## テスト用DBを起動してヘルスチェック待機
 	@echo "テスト用DBを起動中 (ポート 3307)..."
-	docker compose -f docker-compose.test.yml up -d db-test
-	@until docker compose -f docker-compose.test.yml ps db-test --format json | grep -q '"Health":"healthy"'; do \
+	docker compose -f compose.test.yaml up -d db-test
+	@until docker compose -f compose.test.yaml ps db-test --format json | grep -q '"Health":"healthy"'; do \
 		sleep 1; \
 	done
 	@echo "テスト用DBの起動が完了しました。"
 
 .PHONY: test-db-down
 test-db-down: ## テスト用DBを停止・ボリューム削除
-	docker compose -f docker-compose.test.yml down -v
+	docker compose -f compose.test.yaml down -v
 
 .PHONY: test
 test: test-db-up ## テスト用DBを起動してGoのテストを実行
