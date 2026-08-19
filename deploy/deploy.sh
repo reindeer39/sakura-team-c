@@ -8,13 +8,9 @@ fi
 
 IMAGE="$1"
 DEPLOY_DIR="/opt/sakuravel"
-COMPOSE_FILE="${DEPLOY_DIR}/docker-compose.yml"
+COMPOSE_FILE="${DEPLOY_DIR}/compose.reg.yml"
 ENV_FILE="/opt/sakuravel/backend.env"
 
-if [ ! -f "${ENV_FILE}" ]; then
-  echo "${ENV_FILE} does not exist"
-  exit 1
-fi
 
 if [ ! -f "${COMPOSE_FILE}" ]; then
   echo "${COMPOSE_FILE} does not exist"
@@ -31,17 +27,17 @@ if docker container inspect sakuravel-backend >/dev/null 2>&1; then
 fi
 
 echo "Pulling deployment images"
-docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" pull
+docker compose -f "${COMPOSE_FILE}" pull
 
 echo "Starting deployment"
-docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" up -d --remove-orphans
+docker compose -f "${COMPOSE_FILE}" up -d --remove-orphans
 
 sleep 5
 
 for service in api frontend caddy; do
-  if [ -z "$(docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" ps --status running -q "${service}")" ]; then
+  if [ -z "$(docker compose -f "${COMPOSE_FILE}" ps --status running -q "${service}")" ]; then
     echo "${service} failed to start"
-    docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" logs --tail=100 "${service}" || true
+    docker compose -f "${COMPOSE_FILE}" logs --tail=100 "${service}" || true
     exit 1
   fi
 done
