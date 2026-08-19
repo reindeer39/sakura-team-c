@@ -5,32 +5,12 @@ services:
     # ports:
     #   - "8080:8080"
     environment:
-      - DATABASE_URL=sakuravel:password@tcp(db:3306)/sakuravel?parseTime=true&charset=utf8mb4
+      - DATABASE_URL=sakuravel_app:test_path@tcp(192.168.1.30:5432)/sakuravel_app?parseTime=true&charset=utf8mb4
       - PORT=8080
       # ブラウザから見たフロントエンドのオリジン（Caddy 経由で同一オリジン）
       - ALLOWED_ORIGIN=https://teamc.intern28.sakuraha.jp
       - COOKIE_SECURE=true   # HTTPS 配信時
-    depends_on:
-      db:
-        condition: service_healthy
     restart: on-failure
-
-  db:
-    image: mariadb:10.11
-    environment:
-      MYSQL_DATABASE: sakuravel
-      MYSQL_USER: sakuravel
-      MYSQL_PASSWORD: password
-      MYSQL_ROOT_PASSWORD: password
-    # ports:
-    #   - "3306:3306"
-    volumes:
-      - mariadb_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -u sakuravel -ppassword"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
   frontend:
     image: sakura-intern8.sakuracr.jp/intern2026-app-frontend:latest
@@ -57,7 +37,6 @@ services:
       - frontend
 
 volumes:
-  mariadb_data:
   caddy_data:
   caddy_config:
 

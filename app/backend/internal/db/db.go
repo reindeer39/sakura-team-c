@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	drivermysql "github.com/go-sql-driver/mysql"
@@ -44,6 +45,56 @@ func New() *sql.DB {
 
 	log.Println("database connected")
 	return db
+}
+
+func EnsureDatabase() error {
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		return fmt.Errorf("DATABASE_URL is not set")
+	}
+
+	cfg, err := drivermysql.ParseDSN(dsn)
+	if err != nil {
+		return fmt.Errorf("failed to parse DSN: %w", err)
+	}
+
+	name := cfg.DBName
+	if name == "" {
+		return fmt.Errorf("DATABASE_URL does not contain a database name")
+	}
+	if strings.ContainsAny(name, "`\\ ") {
+		return fmt.Errorf("invalid database name: %q", name)
+	}
+
+	cfg.DBName = ""
+	serverDB, err := sql.Open("mysql", cfg.FormatDSN())
+	if err != nil {
+		return fmt.Errorf("failed to open db: %w", err)
+	}
+	defer func() {
+		if closeErr := serverDB.Close(); closeErr != nil {
+			log.Printf("failed to close db: %v", closeErr)
+		}
+	}()
+
+	for i := 0; i < 10; i++ {
+		if err = serverDB.Ping(); err == nil {
+			break
+		}
+		log.Printf("waiting for db... (%d/10)", i+1)
+		time.Sleep(2 * time.Second)
+	}
+	if err != nil {
+		return fmt.Errorf("db ping: %w", err)
+	}
+
+	stmt := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS `%s` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci", name)
+	if _, err := serverDB.Exec(stmt); err != nil {
+		return fmt.Errorf("failed to create database %q: %w", name, err)
+	}
+
+	log.Printf("database %q is ready", name)
+	return nil
 }
 
 // newMigrateInstance creates a new migrate.Migrate instance with the given *sql.DB.

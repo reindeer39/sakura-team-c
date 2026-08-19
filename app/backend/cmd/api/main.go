@@ -14,6 +14,10 @@ import (
 )
 
 func main() {
+	if err := appdb.EnsureDatabase(); err != nil {
+		slog.Error("Failed to ensure database", "error", err)
+		os.Exit(1)
+	}
 	if err := appdb.RunMigrations(); err != nil {
 		slog.Error("Failed to run migrations", "error", err)
 		os.Exit(1)
