@@ -14,7 +14,7 @@ import (
 
 type Handler struct {
 	DB *sql.DB
-	// CookieSecure が true の場合、セッションCookieに Secure + SameSite=None を付与する。
+	// CookieSecure が true の場合、セッションCookieに Secure + SameSite=Strict を付与する。
 	// フロントエンドとバックエンドが別オリジン（別サブドメイン等）で動く構成向け。
 	CookieSecure bool
 	// Notifications はユーザーIDごと、Threads はスレッドのルート投稿IDごとの SSE 購読を管理する。
