@@ -119,5 +119,5 @@ test: test-db-up ## テスト用DBを起動してGoのテストを実行
 
 .PHONY: bench
 bench: test-db-up ## テスト用DBを起動し、シード投入後の重いエンドポイント応答時間を計測 (例: make bench SCALE=1 ITERATIONS=10)
-	DATABASE_URL="$(TEST_DATABASE_URL)" BENCH_SCALE="$(SCALE)" BENCH_ITERATIONS="$(ITERATIONS)" go test -v -run ^TestBenchmark_HeavyEndpoints$$ ./internal/server/ -timeout 30m
+	DATABASE_URL="$(TEST_DATABASE_URL)" BENCH_SCALE="$(SCALE)" BENCH_ITERATIONS="$(ITERATIONS)" go test -v -count=1 -run ^TestBenchmark_HeavyEndpoints$$ ./internal/server/ -timeout 30m
 

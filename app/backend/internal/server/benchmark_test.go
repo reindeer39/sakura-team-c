@@ -151,6 +151,9 @@ func TestBenchmark_HeavyEndpoints(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ウォームアップリクエスト実行失敗 (%s): %v", target.name, err)
 		}
+		if warmupResp.StatusCode < 200 || warmupResp.StatusCode >= 300 {
+			t.Fatalf("[%s] ウォームアップリクエスト異常ステータス: %d", target.name, warmupResp.StatusCode)
+		}
 		testutil.CloseBody(warmupResp)
 
 		durations := make([]time.Duration, 0, iterations)
@@ -171,6 +174,10 @@ func TestBenchmark_HeavyEndpoints(t *testing.T) {
 			}
 			lastStatusCode = resp.StatusCode
 			testutil.CloseBody(resp)
+
+			if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+				t.Fatalf("[%s] 予期しないステータスコード (回数: %d): %d", target.name, i+1, resp.StatusCode)
+			}
 
 			durations = append(durations, elapsed)
 		}
