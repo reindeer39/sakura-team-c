@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 )
 
 func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
@@ -28,11 +29,21 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func escapeLike(keyword string) string {
+	replacer := strings.NewReplacer(
+		`\`, `\\`,
+		`%`, `\%`,
+		`_`, `\_`,
+	)
+	return replacer.Replace(keyword)
+}
+
 func (h *Handler) searchPosts(w http.ResponseWriter, r *http.Request, q string, viewerID int64, page, perPage, offset int) {
-	pattern := "%" + q + "%"
+	escapedQ := escapeLike(q)
+	pattern := "%" + escapedQ + "%"
 	rows, err := h.DB.QueryContext(r.Context(), `
 		SELECT id FROM posts
-		WHERE content LIKE ?
+		WHERE content LIKE ? ESCAPE '\\'
 		ORDER BY created_at DESC
 		LIMIT ? OFFSET ?
 	`, pattern, perPage, offset)
