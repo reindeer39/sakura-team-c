@@ -85,7 +85,7 @@ func InsertSeedData(db *sql.DB, scale int) (*SeedResult, error) {
 		return nil, fmt.Errorf("DB接続失敗: %w", err)
 	}
 
-	if err := appdb.RunMigrationsWithDB(db); err != nil {
+	if err := appdb.RunMigrations(); err != nil {
 		return nil, fmt.Errorf("マイグレーション失敗: %w", err)
 	}
 
