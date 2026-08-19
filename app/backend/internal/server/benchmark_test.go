@@ -86,17 +86,24 @@ func TestBenchmark_HeavyEndpoints(t *testing.T) {
 	// 未認証クライアント
 	anonClient := &http.Client{}
 
+	// 対象ユーザーIDと投稿IDの選定
+	var targetUserID int64 = 1
+	if len(seedRes.UserIDs) > 0 {
+		targetUserID = seedRes.UserIDs[0]
+	}
+
+	var normalPostID int64 = 1
+	if len(seedRes.PostIDs) > 0 {
+		normalPostID = seedRes.PostIDs[0]
+	}
+
 	// スレッド計測用に対象の投稿IDを選択（返信が紐づいている親投稿IDを優先して取得）
 	var threadPostID int64
 	err = db.QueryRow(`
 		SELECT DISTINCT parent_post_id FROM posts WHERE parent_post_id IS NOT NULL LIMIT 1
 	`).Scan(&threadPostID)
 	if err != nil || threadPostID == 0 {
-		if len(seedRes.PostIDs) > 0 {
-			threadPostID = seedRes.PostIDs[0]
-		} else {
-			threadPostID = 1
-		}
+		threadPostID = normalPostID
 	}
 
 	targets := []endpointBenchmarkTarget{
@@ -113,15 +120,15 @@ func TestBenchmark_HeavyEndpoints(t *testing.T) {
 			authClient: authClient,
 		},
 		{
-			name:       "3. トレンド一覧",
+			name:       "3. 最新タイムライン",
 			method:     "GET",
-			path:       "/trending",
-			authClient: anonClient,
+			path:       "/posts?feed=latest",
+			authClient: authClient,
 		},
 		{
-			name:       "4. 投稿検索",
+			name:       "4. ユーザー投稿一覧",
 			method:     "GET",
-			path:       "/search?q=さくら&type=posts",
+			path:       fmt.Sprintf("/users/%d/posts", targetUserID),
 			authClient: anonClient,
 		},
 		{
@@ -129,6 +136,78 @@ func TestBenchmark_HeavyEndpoints(t *testing.T) {
 			method:     "GET",
 			path:       fmt.Sprintf("/posts/%d/thread", threadPostID),
 			authClient: anonClient,
+		},
+		{
+			name:       "6. 投稿単体取得",
+			method:     "GET",
+			path:       fmt.Sprintf("/posts/%d", normalPostID),
+			authClient: anonClient,
+		},
+		{
+			name:       "7. 投稿いいね一覧",
+			method:     "GET",
+			path:       fmt.Sprintf("/posts/%d/likes", normalPostID),
+			authClient: anonClient,
+		},
+		{
+			name:       "8. トレンド一覧",
+			method:     "GET",
+			path:       "/trending",
+			authClient: anonClient,
+		},
+		{
+			name:       "9. 投稿検索",
+			method:     "GET",
+			path:       "/search?q=さくら&type=posts",
+			authClient: anonClient,
+		},
+		{
+			name:       "10. ユーザー検索",
+			method:     "GET",
+			path:       "/search?q=user&type=users",
+			authClient: anonClient,
+		},
+		{
+			name:       "11. 自分のプロフィール",
+			method:     "GET",
+			path:       "/me",
+			authClient: authClient,
+		},
+		{
+			name:       "12. ユーザープロフィール(足跡記録)",
+			method:     "GET",
+			path:       fmt.Sprintf("/profile/%d", targetUserID),
+			authClient: authClient,
+		},
+		{
+			name:       "13. フォロワー一覧",
+			method:     "GET",
+			path:       fmt.Sprintf("/users/%d/followers", targetUserID),
+			authClient: anonClient,
+		},
+		{
+			name:       "14. フォロー中一覧",
+			method:     "GET",
+			path:       fmt.Sprintf("/users/%d/following", targetUserID),
+			authClient: anonClient,
+		},
+		{
+			name:       "15. 足跡一覧",
+			method:     "GET",
+			path:       "/me/footprints",
+			authClient: authClient,
+		},
+		{
+			name:       "16. 通知一覧",
+			method:     "GET",
+			path:       "/notifications",
+			authClient: authClient,
+		},
+		{
+			name:       "17. 未読通知数",
+			method:     "GET",
+			path:       "/notifications/unread_count",
+			authClient: authClient,
 		},
 	}
 

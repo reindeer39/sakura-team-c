@@ -60,33 +60,15 @@ func SetupTestDB(t *testing.T) *sql.DB {
 		t.Fatalf("failed to ping test db (%s): %v (Is test DB container running on port 3307?)", dsn, pingErr)
 	}
 
-	ResetAndMigrateDB(t, db)
+	if err := appdb.ResetAndMigrateWithDB(db); err != nil {
+		t.Fatalf("failed to reset and run migrations: %v", err)
+	}
 
 	t.Cleanup(func() {
 		_ = db.Close()
 	})
 
 	return db
-}
-
-// ResetAndMigrateDB はデータベースを初期化し、golang-migrate を使ってスキーマを適用する
-func ResetAndMigrateDB(t *testing.T, db *sql.DB) {
-	t.Helper()
-
-	// 1. 既存テーブルの全削除と再作成
-	_, err := db.Exec(`
-		DROP DATABASE IF EXISTS sakuravel;
-		CREATE DATABASE sakuravel;
-		USE sakuravel;
-	`)
-	if err != nil {
-		t.Fatalf("failed to reset database: %v", err)
-	}
-
-	// 2. golang-migrate によるマイグレーション実行
-	if err := appdb.RunMigrationsWithDB(db); err != nil {
-		t.Fatalf("failed to run migrations: %v", err)
-	}
 }
 
 func SetupTestServer(t *testing.T, db *sql.DB) (*httptest.Server, *handler.Handler) {

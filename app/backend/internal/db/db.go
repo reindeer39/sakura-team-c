@@ -46,21 +46,55 @@ func New() *sql.DB {
 	return db
 }
 
-// RunMigrationsWithDB applies all pending database migrations on the given *sql.DB instance.
-func RunMigrationsWithDB(db *sql.DB) error {
+// newMigrateInstance creates a new migrate.Migrate instance with the given *sql.DB.
+func newMigrateInstance(db *sql.DB) (*migrate.Migrate, error) {
 	driver, err := migratemysql.WithInstance(db, &migratemysql.Config{})
 	if err != nil {
-		return fmt.Errorf("failed to create mysql driver: %w", err)
+		return nil, fmt.Errorf("failed to create mysql driver: %w", err)
 	}
 
 	sourceDriver, err := iofs.New(migrations.FS, ".")
 	if err != nil {
-		return fmt.Errorf("failed to create iofs source driver: %w", err)
+		return nil, fmt.Errorf("failed to create iofs source driver: %w", err)
 	}
 
 	m, err := migrate.NewWithInstance("iofs", sourceDriver, "mysql", driver)
 	if err != nil {
-		return fmt.Errorf("failed to create migrate instance: %w", err)
+		return nil, fmt.Errorf("failed to create migrate instance: %w", err)
+	}
+
+	return m, nil
+}
+
+// ResetAndMigrateWithDB drops all tables using golang-migrate and reapplies all migrations.
+func ResetAndMigrateWithDB(db *sql.DB) error {
+	m, err := newMigrateInstance(db)
+	if err != nil {
+		return err
+	}
+
+	if err := m.Drop(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return fmt.Errorf("failed to drop tables: %w", err)
+	}
+
+	mUp, err := newMigrateInstance(db)
+	if err != nil {
+		return err
+	}
+
+	if err := mUp.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return fmt.Errorf("migration failed: %w", err)
+	}
+
+	log.Println("database reset and migrations applied successfully")
+	return nil
+}
+
+// RunMigrationsWithDB applies all pending database migrations on the given *sql.DB instance.
+func RunMigrationsWithDB(db *sql.DB) error {
+	m, err := newMigrateInstance(db)
+	if err != nil {
+		return err
 	}
 
 	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
