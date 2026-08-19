@@ -423,6 +423,51 @@ func TestBenchmark_HeavyEndpoints(t *testing.T) {
 
 	fmt.Print(report.String())
 	t.Log(report.String())
+
+	writeStepSummary(stats, scale, iterations, seedRes.Duration)
+}
+
+func writeStepSummary(stats []benchmarkStat, scale int, iterations int, seedDuration time.Duration) {
+	summaryPath := os.Getenv("GITHUB_STEP_SUMMARY")
+	if summaryPath == "" {
+		summaryPath = os.Getenv("BENCH_SUMMARY_FILE")
+	}
+	if summaryPath == "" {
+		return
+	}
+
+	var md strings.Builder
+	md.WriteString("## Backend api benchmark Results\n\n")
+	md.WriteString(fmt.Sprintf("- **Scale**: `%d` (Seed Duration: `%.2fs`)\n", scale, seedDuration.Seconds()))
+	md.WriteString(fmt.Sprintf("- **Iterations**: `%d` times per endpoint\n\n", iterations))
+	md.WriteString("| Endpoint Name | Method | Path | Status | Min | Avg | P50 | P95 | Max |\n")
+	md.WriteString("| :--- | :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: |\n")
+
+	for _, s := range stats {
+		fmt.Fprintf(&md, "| %s | `%s` | `%s` | `%d` | %s | %s | %s | %s | %s |\n",
+			s.name,
+			s.method,
+			s.path,
+			s.statusCode,
+			formatDuration(s.min),
+			formatDuration(s.avg),
+			formatDuration(s.p50),
+			formatDuration(s.p95),
+			formatDuration(s.max),
+		)
+	}
+	md.WriteString("\n")
+
+	f, err := os.OpenFile(summaryPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Printf("Warning: failed to write to step summary file (%s): %v\n", summaryPath, err)
+		return
+	}
+	defer f.Close()
+
+	if _, err := f.WriteString(md.String()); err != nil {
+		fmt.Printf("Warning: failed to append to step summary file (%s): %v\n", summaryPath, err)
+	}
 }
 
 func formatDuration(d time.Duration) string {
