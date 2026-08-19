@@ -13,9 +13,16 @@ import (
 )
 
 func main() {
-
+	if err := appdb.RunMigrations(); err != nil {
+		slog.Error("Failed to run migrations", "error", err)
+		os.Exit(1)
+	}
 	db := appdb.New()
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			slog.Error("failed to close db", "error", err)
+		}
+	}()
 
 	h := &handler.Handler{
 		DB:            db,

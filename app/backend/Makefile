@@ -37,8 +37,11 @@ logs: ## コンテナのログを表示 (例: make logs c=api)
 build: ## コンテナイメージをビルド
 	docker compose build
 
+MIGRATE_IMAGE ?= migrate/migrate:v4.18.2
+MIGRATE_URL ?= mysql://sakuravel:password@tcp(db:3306)/sakuravel?charset=utf8mb4&parseTime=true
+
 .PHONY: db-reset
-db-reset: ## DBボリュームを削除し、初期マイグレーション状態にリセット
+db-reset: ## DBボリュームを削除し、初期状態にリセット (api起動時に自動マイグレーション)
 	@echo "DBボリュームを削除して初期化します..."
 	docker compose down -v
 	docker compose up -d db
@@ -47,6 +50,22 @@ db-reset: ## DBボリュームを削除し、初期マイグレーション状�
 		sleep 1; \
 	done
 	@echo "DBのリセットが完了しました。"
+
+.PHONY: migrate-create
+migrate-create: ## 新規マイグレーションファイルを作成 (例: make migrate-create name=add_column)
+	docker run --rm -v "$$(pwd)/migrations:/migrations" $(MIGRATE_IMAGE) create -ext sql -dir /migrations -seq $(name)
+
+.PHONY: migrate-down
+migrate-down: ## 直近のマイグレーションを1世代ロールバック
+	docker run --rm -v "$$(pwd)/migrations:/migrations" --network app-network $(MIGRATE_IMAGE) -path=/migrations/ -database "$(MIGRATE_URL)" down 1
+
+.PHONY: migrate-status
+migrate-status: ## 現在のマイグレーションバージョンを表示
+	docker run --rm -v "$$(pwd)/migrations:/migrations" --network app-network $(MIGRATE_IMAGE) -path=/migrations/ -database "$(MIGRATE_URL)" version
+
+.PHONY: migrate-force
+migrate-force: ## ダーティ状態を強制解除 (例: make migrate-force version=1)
+	docker run --rm -v "$$(pwd)/migrations:/migrations" --network app-network $(MIGRATE_IMAGE) -path=/migrations/ -database "$(MIGRATE_URL)" force $(version)
 
 .PHONY: seed
 seed: ## ダミーデータを投入 (例: make seed SCALE=2)

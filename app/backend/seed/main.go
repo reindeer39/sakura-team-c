@@ -12,6 +12,8 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"golang.org/x/crypto/bcrypt"
+
+	appdb "sakuravel/internal/db"
 )
 
 const (
@@ -80,6 +82,10 @@ func main() {
 
 	if err := db.Ping(); err != nil {
 		log.Fatal("DB接続失敗:", err)
+	}
+
+	if err := appdb.RunMigrations(); err != nil {
+		log.Fatal("マイグレーション失敗:", err)
 	}
 
 	rng := rand.New(rand.NewSource(42))

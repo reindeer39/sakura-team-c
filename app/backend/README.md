@@ -45,7 +45,7 @@ Sakuravel は、Twitter/X ライクな短文投稿 SNS（マイクロブログ�
  │   ├── middleware/     認証ミドルウェア（セッション検証）
  │   ├── realtime/       SSE の購読管理（通知・スレッド）
  │   └── model/          User / Post / Notification などのデータモデル
- ├── migrations/         スキーマ定義（db コンテナの初回起動時に自動実行）
+ ├── migrations/         スキーマ定義（Goアプリ起動時に golang-migrate により自動実行）
  ├── seed/               動作確認用のダミーデータ投入スクリプト
  ├── Dockerfile          API のイメージ定義
  ├── .env.example        環境変数のサンプル
@@ -69,7 +69,7 @@ flowchart LR
 ```
 
 - 認証は Cookie（`session_id`）ベースです。ログイン成功時に発行された `session_id` を `Cookie` ヘッダーで送信することで認証済みリクエストとして扱われます。
-- `db` コンテナの初回起動時のみ `migrations/*.sql` が MariaDB の初期化フックで自動実行され、スキーマが作成されます（既にデータボリュームがある場合は実行されません）。
+- API 起動時に `migrations/*.sql` が `golang-migrate` により自動実行され、未適用のスキーマ差分が安全に反映されます。
 
 ## データベース設計（ER図）
 
@@ -227,9 +227,7 @@ docker compose up -d
 
 - フロントエンド: `http://localhost:3000`（ビルド済みイメージを取得して起動します）
 - API: `http://localhost:8080`
-- MariaDB: `localhost:3306`（DB: `sakuravel` / user: `sakuravel` / password: `password`）
-
-初回起動時のみ `migrations/*.sql` が自動実行され、スキーマが作成されます。
+API コンテナ起動時に `golang-migrate` により `migrations/*.sql` が自動適用され、スキーマが最新化されます。
 
 ### コンテナの操作
 
