@@ -427,7 +427,7 @@ func (h *Handler) fetchPost(r *http.Request, postID, viewerID int64) (model.Post
 	return p, nil
 }
 
-// fetchPostsInBatch は posts テーブルから任意件取得し、関連データを付加する
+// fetchPostsInBatch は posts テーブルから指定された範囲取得し、関連データを付加する
 func (h *Handler) fetchPostsInBatch(r *http.Request, ids []int64, viewerID int64) ([]model.Post, error) {
 	if len(ids) == 0 {
 		return nil, nil
@@ -436,6 +436,7 @@ func (h *Handler) fetchPostsInBatch(r *http.Request, ids []int64, viewerID int64
 
 	postUserIDs := make(map[int64]int64)
 	var userIDs []int64
+	var parentPostIDs []int64
 
 	placeholders := make([]string, len(ids))
 	args := make([]any, len(ids))
@@ -474,6 +475,9 @@ func (h *Handler) fetchPostsInBatch(r *http.Request, ids []int64, viewerID int64
 		); err != nil {
 			return nil, err
 		}
+		if p.ParentPostID != nil {
+		    parentPostIDs = append(parentPostIDs, *p.ParentPostID)
+		}
 
 		postUserIDs[p.ID] = userID
 		userIDs = append(userIDs, userID)
@@ -487,6 +491,11 @@ func (h *Handler) fetchPostsInBatch(r *http.Request, ids []int64, viewerID int64
 
 	if err := rows.Close(); err != nil {
 		return nil, err
+	}
+
+	replyTargets, err := h.fetchReplyTargetsInBatch(r, parentPostIDs)
+	if err != nil {
+	    return nil, err
 	}
 
 	authors, err := h.fetchUsersInBatch(r, userIDs)
@@ -529,6 +538,16 @@ func (h *Handler) fetchPostsInBatch(r *http.Request, ids []int64, viewerID int64
 
 		p.LikedByMe = likedByMe[p.ID]
 		p.RepostedByMe = repostedByMe[p.ID]
+		if p.ParentPostID != nil {
+		    if target, ok := replyTargets[*p.ParentPostID]; ok {
+		        username := target.Username
+		        displayName := target.DisplayName
+			
+		        p.ReplyToUsername = &username
+		        p.ReplyToDisplayName = &displayName
+		    }
+		}
+		p.RepliesCount = h.countReplies(r, p.ID, 0)
 	}
 
 	postByID := make(map[int64]model.Post, len(posts))
@@ -737,6 +756,64 @@ func (h *Handler) fetchRepostedByMeInBatch(r *http.Request, postIDs []int64) (ma
 		return nil, err
 	}
 	return reposted, nil
+}
+
+//返信の場合、返信先の投稿者を解決する
+type replyTarget struct {
+    Username    string
+    DisplayName string
+}
+func (h *Handler) fetchReplyTargetsInBatch(r *http.Request,parentPostIDs []int64,) (map[int64]replyTarget, error) {
+	targets := make(map[int64]replyTarget)
+
+    if len(parentPostIDs) == 0 {
+        return targets, nil
+    }
+
+    placeholders := make([]string, len(parentPostIDs))
+    args := make([]any, len(parentPostIDs))
+
+    for i, id := range parentPostIDs {
+        placeholders[i] = "?"
+        args[i] = id
+    }
+
+    query := `
+        SELECT parent.id, u.username, u.display_name
+        FROM posts parent
+        JOIN users u ON u.id = parent.user_id
+        WHERE parent.id IN (` + strings.Join(placeholders, ",") + `)
+    `
+
+    rows, err := h.DB.QueryContext(r.Context(), query, args...)
+    if err != nil {
+        return nil, err
+    }
+
+    defer func() {
+        _ = rows.Close()
+    }()
+
+    for rows.Next() {
+        var parentPostID int64
+        var target replyTarget
+
+        if err := rows.Scan(
+            &parentPostID,
+            &target.Username,
+            &target.DisplayName,
+        ); err != nil {
+            return nil, err
+        }
+
+        targets[parentPostID] = target
+    }
+
+    if err := rows.Err(); err != nil {
+        return nil, err
+    }
+
+    return targets, nil
 }
 
 // maxThreadDepth はスレッドを辿る深さの上限（循環や極端に深いスレッドの保険）。
