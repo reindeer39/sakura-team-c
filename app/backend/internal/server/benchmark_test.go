@@ -23,7 +23,6 @@ type endpointBenchmarkTarget struct {
 	path       string
 	authClient *http.Client
 	body       []byte
-	setup      func()
 }
 
 type benchmarkStat struct {
@@ -437,11 +436,11 @@ func writeStepSummary(stats []benchmarkStat, scale int, iterations int, seedDura
 	}
 
 	var md strings.Builder
-	md.WriteString("## Backend api benchmark Results\n\n")
-	md.WriteString(fmt.Sprintf("- **Scale**: `%d` (Seed Duration: `%.2fs`)\n", scale, seedDuration.Seconds()))
-	md.WriteString(fmt.Sprintf("- **Iterations**: `%d` times per endpoint\n\n", iterations))
-	md.WriteString("| Endpoint Name | Method | Path | Status | Min | Avg | P50 | P95 | Max |\n")
-	md.WriteString("| :--- | :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: |\n")
+	fmt.Fprintf(&md, "## Backend api benchmark Results\n\n")
+	fmt.Fprintf(&md, "- **Scale**: `%d` (Seed Duration: `%.2fs`)\n", scale, seedDuration.Seconds())
+	fmt.Fprintf(&md, "- **Iterations**: `%d` times per endpoint\n\n", iterations)
+	fmt.Fprintf(&md, "| Endpoint Name | Method | Path | Status | Min | Avg | P50 | P95 | Max |\n")
+	fmt.Fprintf(&md, "| :--- | :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: |\n")
 
 	for _, s := range stats {
 		fmt.Fprintf(&md, "| %s | `%s` | `%s` | `%d` | %s | %s | %s | %s | %s |\n",
@@ -463,7 +462,9 @@ func writeStepSummary(stats []benchmarkStat, scale int, iterations int, seedDura
 		fmt.Printf("Warning: failed to write to step summary file (%s): %v\n", summaryPath, err)
 		return
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	if _, err := f.WriteString(md.String()); err != nil {
 		fmt.Printf("Warning: failed to append to step summary file (%s): %v\n", summaryPath, err)
