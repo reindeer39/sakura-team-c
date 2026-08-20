@@ -465,7 +465,7 @@ func (h *Handler) fetchPost(r *http.Request, postID, viewerID int64) (model.Post
 // fetchPostsInBatch は posts テーブルから指定された範囲取得し、関連データを付加する
 func (h *Handler) fetchPostsInBatch(r *http.Request, ids []int64, viewerID int64) ([]model.Post, error) {
 	if len(ids) == 0 {
-		return nil, nil
+		return []model.Post{}, nil
 	}
 	var posts []model.Post
 
