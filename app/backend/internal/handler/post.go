@@ -63,24 +63,49 @@ func (h *Handler) GetTimeline(w http.ResponseWriter, r *http.Request) {
 		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err, "feed", feed)
 		return
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
-	type postRow struct {
-		id     int64
-		userID int64
-	}
-	var rawPosts []postRow
+	var ids []int64
+
 	for rows.Next() {
-		var p postRow
-		var dummy any // content, is_repost, original_post_id, created_at
-		rows.Scan(&p.id, &p.userID, &dummy, &dummy, &dummy, &dummy)
-		rawPosts = append(rawPosts, p)
+		var id int64
+
+		if err := rows.Scan(&id); err != nil {
+			h.respondErrorWithErr(
+				r,
+				w,
+				http.StatusInternalServerError,
+				"server error",
+				err,
+			)
+			return
+		}
+
+		ids = append(ids, id)
 	}
 
-	ids := make([]int64, 0, len(rawPosts))
+	if err := rows.Err(); err != nil {
+		h.respondErrorWithErr(
+			r,
+			w,
+			http.StatusInternalServerError,
+			"server error",
+			err,
+		)
+		return
+	}
 
-	for _, rp := range rawPosts {
-		ids = append(ids, rp.id)
+	if err := rows.Close(); err != nil {
+		h.respondErrorWithErr(
+			r,
+			w,
+			http.StatusInternalServerError,
+			"server error",
+			err,
+		)
+		return
 	}
 
 	posts, err := h.fetchPostsInBatch(r, ids, myID)
