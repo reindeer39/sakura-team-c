@@ -23,6 +23,9 @@ CREATE TABLE IF NOT EXISTS posts (
     original_post_id BIGINT,
     parent_post_id   BIGINT      DEFAULT NULL,
     created_at       TIMESTAMP   NOT NULL DEFAULT NOW()
+
+    INDEX idx_posts_parent_created_id
+        (parent_post_id, created_at, id)
 );
 
 CREATE TABLE IF NOT EXISTS follows (
@@ -37,6 +40,9 @@ CREATE TABLE IF NOT EXISTS likes (
     post_id    BIGINT      NOT NULL,
     created_at TIMESTAMP   NOT NULL DEFAULT NOW(),
     PRIMARY KEY (user_id, post_id)
+
+    INDEX idx_likes_post_created_at
+        (post_id, created_at)
 );
 
 CREATE TABLE IF NOT EXISTS reposts (
