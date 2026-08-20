@@ -44,6 +44,18 @@ services:
       - api
     restart: on-failure
 
+  otel-collector:
+    image: ghcr.io/sacloud/sacloud-otel-collector:latest
+    command: ["--config", "/etc/otel/config.yaml"]
+    restart: unless-stopped
+    logging:
+      driver: local
+    volumes:
+      - ./otel-collector.yaml:/etc/otel/config.yaml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/log:/var/log:ro
+      - /:/hostfs:ro
+
   caddy:
     image: caddy:2.11.4
     restart: unless-stopped

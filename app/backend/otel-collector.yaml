@@ -1,0 +1,73 @@
+receivers:
+  hostmetrics:
+    collection_interval: 30s
+    root_path: /hostfs
+    scrapers:
+      cpu:
+      load:
+      memory:
+      disk:
+      filesystem:
+      network:
+      paging:
+
+  filelog/containers:
+    start_at: end
+    include:
+      - /var/lib/docker/containers/*/*-json.log
+    include_file_path: true
+    operators:
+      - type: json_parser
+        parse_from: body
+        timestamp:
+          parse_from: attributes.time
+          layout_type: gotime
+          layout: '2006-01-02T15:04:05.999999999Z07:00'
+      - type: move
+        from: attributes.log
+        to: body
+
+  filelog/system:
+    start_at: end
+    include:
+      - /var/log/syslog
+      - /var/log/auth.log
+
+processors:
+  batch:
+    timeout: 10s
+  resourcedetection:
+    detectors:
+      - system
+    system:
+      hostname_sources:
+        - os
+
+exporters:
+  sacloud:
+    logs:
+      endpoint: "REPLACE_LOGS_ENDPOINT"
+      token: "REPLACE_LOGS_TOKEN"
+    metrics:
+      endpoint: "REPLACE_METRICS_ENDPOINT"
+      token: "REPLACE_METRICS_TOKEN"
+
+service:
+  pipelines:
+    metrics:
+      receivers:
+        - hostmetrics
+      processors:
+        - resourcedetection
+        - batch
+      exporters:
+        - sacloud
+    logs:
+      receivers:
+        - filelog/containers
+        - filelog/system
+      processors:
+        - resourcedetection
+        - batch
+      exporters:
+        - sacloud
