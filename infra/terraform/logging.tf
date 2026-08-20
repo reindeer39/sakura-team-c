@@ -38,7 +38,7 @@ resource "sakura_monitoring_suite_metric_storage_access_key" "agent" {
 }
 
 output "monitoring_logs_endpoint" {
-  value = sakura_monitoring_suite_log_storage.app.endpoints.ingester.address
+  value = sakura_monitoring_suite_log_storage.app.id
 }
 
 output "monitoring_logs_token" {
@@ -47,7 +47,7 @@ output "monitoring_logs_token" {
 }
 
 output "monitoring_metrics_endpoint" {
-  value = sakura_monitoring_suite_metric_storage.app.endpoints.address
+  value = sakura_monitoring_suite_metric_storage.app.id
 }
 
 output "monitoring_metrics_token" {

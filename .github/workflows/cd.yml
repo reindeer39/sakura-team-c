@@ -175,7 +175,7 @@ jobs:
             -backend-config="use_path_style=true"
           for name in LOGS METRICS; do
             lower="$(echo "$name" | tr '[:upper:]' '[:lower:]')"
-            endpoint="$(terraform output -raw "monitoring_${lower}_endpoint" | sed -E 's#^https?://##; s#/.*##; s#\..*##')"
+            endpoint="$(terraform output -raw "monitoring_${lower}_endpoint")"
             token="$(terraform output -raw "monitoring_${lower}_token")"
             if [ -z "$endpoint" ] || [ -z "$token" ]; then
               echo "monitoring suite outputs are not available yet"
