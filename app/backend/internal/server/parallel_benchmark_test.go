@@ -267,7 +267,9 @@ func TestBenchmark_ParallelAccess(t *testing.T) {
 
 	// アプリ本体の設定ロジック (appdb.New) でDBインスタンスを生成して検証
 	db := appdb.New()
-	defer db.Close()
+	defer func() {
+		_ = db.Close()
+	}()
 
 	t.Logf("シードデータを投入中 (scale=%d)...", scale)
 	seedRes, err := seed.InsertSeedData(db, scale)
@@ -402,7 +404,9 @@ func writeParallelStepSummary(
 		fmt.Printf("Warning: failed to write to step summary file (%s): %v\n", summaryPath, err)
 		return
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	if _, err := f.WriteString(md.String()); err != nil {
 		fmt.Printf("Warning: failed to append to step summary file (%s): %v\n", summaryPath, err)
