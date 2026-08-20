@@ -213,10 +213,11 @@ jobs:
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-        run: |
+         run: |
           ssh -p "$DEPLOY_PORT" -i ~/.ssh/deploy_key \
             "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "mkdir -p /opt/sakuravel"
+            "sudo mkdir -p /opt/sakuravel && \
+             sudo chown ${DEPLOY_USER}:${DEPLOY_USER} /opt/sakuravel"
 
       - name: Generate deployment .env
         env:
