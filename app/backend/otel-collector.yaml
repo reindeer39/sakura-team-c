@@ -34,11 +34,11 @@ receivers:
     multiline:
       line_start_pattern: '^# (Time|User@Host):'
 
-  filelog/system:
-    start_at: end
-    include:
-      - /var/log/syslog
-      - /var/log/auth.log
+  # filelog/system:
+  #   start_at: end
+  #   include:
+  #     - /var/log/syslog
+  #     - /var/log/auth.log
 
 processors:
   batch:
@@ -73,7 +73,7 @@ service:
       receivers:
         - filelog/containers
         - filelog/mysql
-        - filelog/system
+        # - filelog/system
       processors:
         - resourcedetection
         - batch
