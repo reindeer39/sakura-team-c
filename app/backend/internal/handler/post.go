@@ -32,13 +32,7 @@ func (h *Handler) GetTimeline(w http.ResponseWriter, r *http.Request) {
     	      ON l.post_id = p.id
     	      AND l.created_at > NOW() - INTERVAL 24 HOUR
     	    WHERE p.parent_post_id IS NULL
-    	    GROUP BY
-    	        p.id,
-    	        p.user_id,
-    	        p.content,
-    	        p.is_repost,
-    	        p.original_post_id,
-    	        p.created_at
+    	    GROUP BY p.id
     	    ORDER BY
     	        COUNT(l.post_id) DESC,
     	        p.created_at DESC,
