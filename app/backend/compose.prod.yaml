@@ -48,6 +48,8 @@ services:
     image: ghcr.io/sacloud/sacloud-otel-collector:latest
     command: ["--config", "/etc/otel/config.yaml"]
     restart: unless-stopped
+    env_file:
+      - ./monitoring.env
     logging:
       driver: local
     volumes:
