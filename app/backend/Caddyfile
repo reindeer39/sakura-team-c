@@ -1,4 +1,4 @@
-teamc.intern28.sakuraha.jp {
+{$APP_DOMAIN} {
 	# フロントエンド自身の Next.js ルート。handle_path より前に置くこと
 	handle /api/config* {
 		reverse_proxy frontend:3000

@@ -27,7 +27,7 @@ services:
     volumes:
       - mariadb_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -u $$MYSQL_USER -p$$MYSQL_PASSWORD"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -48,6 +48,8 @@ services:
     image: caddy:2.11.4
     restart: unless-stopped
     ports: ["80:80", "443:443"]
+    environment:
+      - APP_DOMAIN=${APP_DOMAIN:?APP_DOMAIN is required}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
