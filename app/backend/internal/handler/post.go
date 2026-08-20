@@ -18,33 +18,46 @@ func (h *Handler) GetTimeline(w http.ResponseWriter, r *http.Request) {
 	switch feed {
 	case "latest":
 		rows, err = h.DB.QueryContext(r.Context(), `
-			SELECT id, user_id, content, is_repost, original_post_id, created_at
-			FROM posts
-			WHERE parent_post_id IS NULL
-			ORDER BY created_at DESC, id DESC
-			LIMIT ? OFFSET ?
-		`, perPage, offset)
+    	    SELECT id
+    	    FROM posts
+    	    WHERE parent_post_id IS NULL
+    	    ORDER BY created_at DESC, id DESC
+    	    LIMIT ? OFFSET ?
+    	`, perPage, offset)
 	case "recommended":
 		rows, err = h.DB.QueryContext(r.Context(), `
-			SELECT p.id, p.user_id, p.content, p.is_repost, p.original_post_id, p.created_at
-			FROM posts p
-			LEFT JOIN likes l ON l.post_id = p.id AND l.created_at > NOW() - INTERVAL 24 HOUR
-			WHERE p.parent_post_id IS NULL
-			GROUP BY p.id, p.user_id, p.content, p.is_repost, p.original_post_id, p.created_at
-			ORDER BY COUNT(l.post_id) DESC, p.created_at DESC, p.id DESC
-			LIMIT ? OFFSET ?
-		`, perPage, offset)
-	default: // "following"
+    	    SELECT p.id
+    	    FROM posts p
+    	    LEFT JOIN likes l
+    	      ON l.post_id = p.id
+    	      AND l.created_at > NOW() - INTERVAL 24 HOUR
+    	    WHERE p.parent_post_id IS NULL
+    	    GROUP BY
+    	        p.id,
+    	        p.user_id,
+    	        p.content,
+    	        p.is_repost,
+    	        p.original_post_id,
+    	        p.created_at
+    	    ORDER BY
+    	        COUNT(l.post_id) DESC,
+    	        p.created_at DESC,
+    	        p.id DESC
+    	    LIMIT ? OFFSET ?
+    	`, perPage, offset)
+	default:
 		rows, err = h.DB.QueryContext(r.Context(), `
-			SELECT id, user_id, content, is_repost, original_post_id, created_at
-			FROM posts
-			WHERE parent_post_id IS NULL
-			  AND user_id IN (
-				SELECT followee_id FROM follows WHERE follower_id = ?
-			)
-			ORDER BY created_at DESC, id DESC
-			LIMIT ? OFFSET ?
-		`, myID, perPage, offset)
+    	    SELECT id
+    	    FROM posts
+    	    WHERE parent_post_id IS NULL
+    	      AND user_id IN (
+    	        SELECT followee_id
+    	        FROM follows
+    	        WHERE follower_id = ?
+    	      )
+    	    ORDER BY created_at DESC, id DESC
+    	    LIMIT ? OFFSET ?
+    	`, myID, perPage, offset)
 	}
 	if err != nil {
 		h.respondErrorWithErr(r, w, http.StatusInternalServerError, "server error", err, "feed", feed)
