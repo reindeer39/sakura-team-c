@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	drivermysql "github.com/go-sql-driver/mysql"
@@ -27,8 +28,21 @@ func New() *sql.DB {
 		log.Fatalf("db open: %v", err)
 	}
 
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(25)
+	maxOpen := 25
+	if s := os.Getenv("DB_MAX_OPEN_CONNS"); s != "" {
+		if v, err := strconv.Atoi(s); err == nil && v > 0 {
+			maxOpen = v
+		}
+	}
+	maxIdle := maxOpen
+	if s := os.Getenv("DB_MAX_IDLE_CONNS"); s != "" {
+		if v, err := strconv.Atoi(s); err == nil && v > 0 {
+			maxIdle = v
+		}
+	}
+
+	db.SetMaxOpenConns(maxOpen)
+	db.SetMaxIdleConns(maxIdle)
 	db.SetConnMaxLifetime(5 * time.Minute)
 	db.SetConnMaxIdleTime(1 * time.Minute)
 
