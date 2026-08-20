@@ -17,6 +17,10 @@ services:
 
   db:
     image: mariadb:10.11
+    command:
+      - --slow-query-log=1
+      - --slow-query-log-file=/var/lib/mysql/slow.log
+      - --long-query-time=1
     environment:
       MYSQL_DATABASE: ${APP_DB_NAME:?APP_DB_NAME is required}
       MYSQL_USER: ${APP_DB_USER:?APP_DB_USER is required}
@@ -55,6 +59,7 @@ services:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/log:/var/log:ro
       - /:/hostfs:ro
+      - mariadb_data:/var/lib/mysql:ro
 
   caddy:
     image: caddy:2.11.4

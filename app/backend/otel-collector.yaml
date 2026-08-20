@@ -27,6 +27,13 @@ receivers:
         from: attributes.log
         to: body
 
+  filelog/mysql:
+    start_at: end
+    include:
+      - /var/lib/mysql/slow.log
+    multiline:
+      line_start_pattern: '^# (Time|User@Host):'
+
   filelog/system:
     start_at: end
     include:
@@ -65,6 +72,7 @@ service:
     logs:
       receivers:
         - filelog/containers
+        - filelog/mysql
         - filelog/system
       processors:
         - resourcedetection
