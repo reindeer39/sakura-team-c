@@ -225,7 +225,6 @@ jobs:
           APP_DB_NAME: ${{ vars.APP_DB_NAME }}
           APP_DB_PASSWORD: ${{ secrets.APP_DB_PASSWORD }}
           APP_DB_ROOT_PASSWORD: ${{ secrets.APP_DB_ROOT_PASSWORD || secrets.APP_DB_PASSWORD }}
-          APP_FRONTEND_IMAGE: ${{ vars.APP_FRONTEND_IMAGE || format('{0}/intern2026-app-frontend:latest', secrets.SAKURA_REGISTRY_HOST) }}
         run: |
           cat <<EOF > /tmp/deploy.env
           APP_DOMAIN=${APP_DOMAIN}
@@ -233,7 +232,6 @@ jobs:
           APP_DB_NAME=${APP_DB_NAME}
           APP_DB_PASSWORD=${APP_DB_PASSWORD}
           APP_DB_ROOT_PASSWORD=${APP_DB_ROOT_PASSWORD}
-          APP_FRONTEND_IMAGE=${APP_FRONTEND_IMAGE}
           EOF
 
       - name: Upload deployment files
@@ -257,7 +255,7 @@ jobs:
             "${DEPLOY_USER}@${DEPLOY_HOST}" \
             "chmod 600 ~/sakuravel/.env"
 
-      - name: Login to registry from VM
+      - name: Login to backend registry from VM
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
@@ -269,6 +267,20 @@ jobs:
             ssh -p "$DEPLOY_PORT" -i ~/.ssh/deploy_key \
               "${DEPLOY_USER}@${DEPLOY_HOST}" \
               "docker login '${REGISTRY_HOST}' \
+                --username '${REGISTRY_USERNAME}' \
+                --password-stdin"
+            
+      - name: Login to frontend registry from VM
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          REGISTRY_USERNAME: ${{ secrets.SAKURA_FRONTEND_REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.SAKURA_FRONTEND_REGISTRY_PASSWORD }}
+        run: |
+          printf '%s' "$REGISTRY_PASSWORD" |
+            ssh -p "$DEPLOY_PORT" -i ~/.ssh/deploy_key \
+              "${DEPLOY_USER}@${DEPLOY_HOST}" \
+              "docker login intern22.sakuracr.jp \
                 --username '${REGISTRY_USERNAME}' \
                 --password-stdin"
 
