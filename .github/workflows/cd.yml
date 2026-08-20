@@ -152,6 +152,7 @@ jobs:
             ${{ env.IMAGE_NAME }}:${{ github.sha }}
             ${{ env.IMAGE_NAME }}:latest
 
+
       - name: Configure SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
@@ -201,6 +202,7 @@ jobs:
           scp -P "$DEPLOY_PORT" -i ~/.ssh/deploy_key \
             deploy/deploy.sh \
             app/backend/compose.prod.yaml \
+            app/backend/otel-collector.yaml \
             app/backend/Caddyfile \
             "${DEPLOY_USER}@${DEPLOY_HOST}:/opt/sakuravel/"
           scp -r -P "$DEPLOY_PORT" -i ~/.ssh/deploy_key \
