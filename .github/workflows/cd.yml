@@ -82,11 +82,32 @@ jobs:
             "${DEPLOY_USER}@${DEPLOY_HOST}" \
             "mkdir -p /opt/sakuravel"
 
+      - name: Generate deployment .env
+        env:
+          APP_DOMAIN: ${{ vars.APP_DOMAIN }}
+          APP_DB_USER: ${{ vars.APP_DB_USER || vars.DB_USER }}
+          APP_DB_NAME: ${{ vars.APP_DB_NAME || vars.DB_NAME }}
+          APP_DB_PASSWORD: ${{ secrets.APP_DB_PASSWORD || secrets.DB_PASSWORD }}
+          APP_DB_ROOT_PASSWORD: ${{ secrets.APP_DB_ROOT_PASSWORD || secrets.DB_ROOT_PASSWORD || secrets.APP_DB_PASSWORD || secrets.DB_PASSWORD }}
+          APP_FRONTEND_IMAGE: ${{ vars.APP_FRONTEND_IMAGE || vars.FRONTEND_IMAGE || format('{0}/intern2026-app-frontend:latest', secrets.SAKURA_REGISTRY_HOST) }}
+        run: |
+          cat <<EOF > /tmp/deploy.env
+          APP_DOMAIN=${APP_DOMAIN}
+          APP_DB_USER=${APP_DB_USER}
+          APP_DB_NAME=${APP_DB_NAME}
+          APP_DB_PASSWORD=${APP_DB_PASSWORD}
+          APP_DB_ROOT_PASSWORD=${APP_DB_ROOT_PASSWORD}
+          APP_FRONTEND_IMAGE=${APP_FRONTEND_IMAGE}
+          EOF
+
       - name: Upload deployment files
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
         run: |
+          scp -P "$DEPLOY_PORT" -i ~/.ssh/deploy_key \
+            /tmp/deploy.env \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:/opt/sakuravel/.env"
           scp -P "$DEPLOY_PORT" -i ~/.ssh/deploy_key \
             deploy/deploy.sh \
             app/backend/compose.prod.yaml \
@@ -95,6 +116,9 @@ jobs:
           scp -r -P "$DEPLOY_PORT" -i ~/.ssh/deploy_key \
             app/backend/migrations \
             "${DEPLOY_USER}@${DEPLOY_HOST}:/opt/sakuravel/"
+          ssh -p "$DEPLOY_PORT" -i ~/.ssh/deploy_key \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "chmod 600 /opt/sakuravel/.env"
 
       - name: Login to registry from VM
         env:

@@ -16,7 +16,7 @@ if [ ! -f "${COMPOSE_FILE}" ]; then
   exit 1
 fi
 
-export BACKEND_IMAGE="${IMAGE}"
+export APP_BACKEND_IMAGE="${IMAGE}"
 
 cd "${DEPLOY_DIR}"
 

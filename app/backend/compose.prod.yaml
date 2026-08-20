@@ -1,14 +1,14 @@
 services:
   api:
-    image: sakura-intern8.sakuracr.jp/intern2026-app-backend:latest
+    image: ${APP_BACKEND_IMAGE:?APP_BACKEND_IMAGE is required}
     platform: linux/amd64
     # ports:
     #   - "8080:8080"
     environment:
-      - DATABASE_URL=sakuravel:password@tcp(db:3306)/sakuravel?parseTime=true&charset=utf8mb4
+      - DATABASE_URL=${APP_DB_USER:?APP_DB_USER is required}:${APP_DB_PASSWORD:?APP_DB_PASSWORD is required}@tcp(db:3306)/${APP_DB_NAME:?APP_DB_NAME is required}?parseTime=true&charset=utf8mb4
       - PORT=8080
       # ブラウザから見たフロントエンドのオリジン（Caddy 経由で同一オリジン）
-      - ALLOWED_ORIGIN=https://teamc.intern28.sakuraha.jp
+      - ALLOWED_ORIGIN=https://${APP_DOMAIN:?APP_DOMAIN is required}
       - COOKIE_SECURE=true   # HTTPS 配信時
     depends_on:
       db:
@@ -18,28 +18,28 @@ services:
   db:
     image: mariadb:10.11
     environment:
-      MYSQL_DATABASE: sakuravel
-      MYSQL_USER: sakuravel
-      MYSQL_PASSWORD: password
-      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: ${APP_DB_NAME:?APP_DB_NAME is required}
+      MYSQL_USER: ${APP_DB_USER:?APP_DB_USER is required}
+      MYSQL_PASSWORD: ${APP_DB_PASSWORD:?APP_DB_PASSWORD is required}
+      MYSQL_ROOT_PASSWORD: ${APP_DB_ROOT_PASSWORD:?APP_DB_ROOT_PASSWORD is required}
     # ports:
     #   - "3306:3306"
     volumes:
       - mariadb_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -u sakuravel -ppassword"]
+      test: ["CMD-SHELL", "mysqladmin ping -u $$MYSQL_USER -p$$MYSQL_PASSWORD"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   frontend:
-    image: sakura-intern8.sakuracr.jp/intern2026-app-frontend:latest
+    image: ${APP_FRONTEND_IMAGE:?APP_FRONTEND_IMAGE is required}
     platform: linux/amd64
     # ports:
     #   - "3000:3000"
     environment:
       # ブラウザから直接叩くバックエンドURL。/api/config 経由でブラウザに渡される
-      - API_URL=https://teamc.intern28.sakuraha.jp/api
+      - API_URL=https://${APP_DOMAIN:?APP_DOMAIN is required}/api
     depends_on:
       - api
     restart: on-failure
