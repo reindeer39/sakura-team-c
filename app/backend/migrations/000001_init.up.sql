@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS posts (
     is_repost        BOOLEAN     NOT NULL DEFAULT FALSE,
     original_post_id BIGINT,
     parent_post_id   BIGINT      DEFAULT NULL,
-    created_at       TIMESTAMP   NOT NULL DEFAULT NOW()
+    created_at       TIMESTAMP   NOT NULL DEFAULT NOW(),
 
     INDEX idx_posts_parent_created_id
         (parent_post_id, created_at, id)
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS likes (
     user_id    BIGINT      NOT NULL,
     post_id    BIGINT      NOT NULL,
     created_at TIMESTAMP   NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (user_id, post_id)
+    PRIMARY KEY (user_id, post_id),
 
     INDEX idx_likes_post_created_at
         (post_id, created_at)
