@@ -85,11 +85,11 @@ jobs:
       - name: Generate deployment .env
         env:
           APP_DOMAIN: ${{ vars.APP_DOMAIN }}
-          APP_DB_USER: ${{ vars.APP_DB_USER || vars.DB_USER }}
-          APP_DB_NAME: ${{ vars.APP_DB_NAME || vars.DB_NAME }}
-          APP_DB_PASSWORD: ${{ secrets.APP_DB_PASSWORD || secrets.DB_PASSWORD }}
-          APP_DB_ROOT_PASSWORD: ${{ secrets.APP_DB_ROOT_PASSWORD || secrets.DB_ROOT_PASSWORD || secrets.APP_DB_PASSWORD || secrets.DB_PASSWORD }}
-          APP_FRONTEND_IMAGE: ${{ vars.APP_FRONTEND_IMAGE || vars.FRONTEND_IMAGE || format('{0}/intern2026-app-frontend:latest', secrets.SAKURA_REGISTRY_HOST) }}
+          APP_DB_USER: ${{ vars.APP_DB_USER }}
+          APP_DB_NAME: ${{ vars.APP_DB_NAME }}
+          APP_DB_PASSWORD: ${{ secrets.APP_DB_PASSWORD }}
+          APP_DB_ROOT_PASSWORD: ${{ secrets.APP_DB_ROOT_PASSWORD || secrets.APP_DB_PASSWORD }}
+          APP_FRONTEND_IMAGE: ${{ vars.APP_FRONTEND_IMAGE || format('{0}/intern2026-app-frontend:latest', secrets.SAKURA_REGISTRY_HOST) }}
         run: |
           cat <<EOF > /tmp/deploy.env
           APP_DOMAIN=${APP_DOMAIN}
