@@ -46,8 +46,11 @@ jobs:
       - name: Test
         run: make test
 
-      - name: Bench
-        run: make bench
+      - name: Endpoint Benchmark
+        run: make bench-endpoints
+
+      - name: Parallel Benchmark
+        run: make bench-parallel
 
       - name: Build
         run: go build ./...
