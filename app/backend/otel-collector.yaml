@@ -53,11 +53,11 @@ processors:
 exporters:
   sacloud:
     logs:
-      endpoint: "${SACLOUD_LOGS_ENDPOINT}"
-      token: "${SACLOUD_LOGS_TOKEN}"
+      endpoint: "REPLACE_LOGS_ENDPOINT"
+      token: "REPLACE_LOGS_TOKEN"
     metrics:
-      endpoint: "${SACLOUD_METRICS_ENDPOINT}"
-      token: "${SACLOUD_METRICS_TOKEN}"
+      endpoint: "REPLACE_METRICS_ENDPOINT"
+      token: "REPLACE_METRICS_TOKEN"
 
 service:
   pipelines:

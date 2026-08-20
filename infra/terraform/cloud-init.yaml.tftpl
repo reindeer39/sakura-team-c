@@ -15,14 +15,6 @@ package_update: true
 package_upgrade: true
 
 write_files:
-  - path: /opt/sakuravel/monitoring.env
-    permissions: '0644'
-    content: |
-      SACLOUD_LOGS_ENDPOINT=${logs_endpoint}
-      SACLOUD_LOGS_TOKEN=${logs_token}
-      SACLOUD_METRICS_ENDPOINT=${metrics_endpoint}
-      SACLOUD_METRICS_TOKEN=${metrics_token}
-
   - path: /etc/ssh/sshd_config.d/99-ssh_port.conf
     permissions: '0644'
     content: |

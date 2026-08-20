@@ -152,6 +152,51 @@ jobs:
             ${{ env.IMAGE_NAME }}:${{ github.sha }}
             ${{ env.IMAGE_NAME }}:latest
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+
+      - name: Resolve monitoring suite endpoints
+        working-directory: infra/terraform
+        env:
+          SAKURA_ACCESS_TOKEN: ${{ secrets.SAKURA_ACCESS_TOKEN }}
+          SAKURA_ACCESS_TOKEN_SECRET: ${{ secrets.SAKURA_ACCESS_TOKEN_SECRET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.TF_STATE_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TF_STATE_SECRET_KEY }}
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="key=sakura-team-c/terraform.tfstate" \
+            -backend-config="region=${{ secrets.TF_STATE_REGION }}" \
+            -backend-config='endpoints={s3="${{ secrets.TF_STATE_ENDPOINT }}"}' \
+            -backend-config="skip_region_validation=true" \
+            -backend-config="skip_credentials_validation=true" \
+            -backend-config="skip_requesting_account_id=true" \
+            -backend-config="skip_metadata_api_check=true" \
+            -backend-config="use_path_style=true"
+          for name in LOGS METRICS; do
+            lower="$(echo "$name" | tr '[:upper:]' '[:lower:]')"
+            endpoint="$(terraform output -raw "monitoring_${lower}_endpoint" | sed -E 's#^https?://##; s#/.*##; s#\..*##')"
+            token="$(terraform output -raw "monitoring_${lower}_token")"
+            if [ -z "$endpoint" ] || [ -z "$token" ]; then
+              echo "monitoring suite outputs are not available yet"
+              exit 1
+            fi
+            echo "::add-mask::$token"
+            printf '%s_ENDPOINT=%s\n%s_TOKEN=%s\n' "$name" "$endpoint" "$name" "$token" >> "$GITHUB_ENV"
+          done
+
+      - name: Render collector config
+        run: |
+          sed -i \
+            -e "s|REPLACE_LOGS_ENDPOINT|${LOGS_ENDPOINT}|" \
+            -e "s|REPLACE_LOGS_TOKEN|${LOGS_TOKEN}|" \
+            -e "s|REPLACE_METRICS_ENDPOINT|${METRICS_ENDPOINT}|" \
+            -e "s|REPLACE_METRICS_TOKEN|${METRICS_TOKEN}|" \
+            app/backend/otel-collector.yaml
+          if grep -q REPLACE_ app/backend/otel-collector.yaml; then
+            echo "collector config still contains placeholders"
+            exit 1
+          fi
 
       - name: Configure SSH
         env:

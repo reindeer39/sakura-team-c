@@ -31,15 +31,11 @@ resource "sakura_server" "docker_host" {
 
   # cloud-init user-data
   user_data = templatefile("${path.module}/cloud-init.yaml.tftpl", {
-    hostname         = var.server_name
-    password         = var.server_password
-    ssh_public_key   = var.server_ssh_public_key_path != "" ? file(pathexpand(var.server_ssh_public_key_path)) : ""
-    private_ip_cidr  = var.server_private_net_cidr
-    ssh_port         = var.server_ssh_port
-    logs_endpoint    = sakura_monitoring_suite_log_storage.app.id
-    logs_token       = sakura_monitoring_suite_log_storage_access_key.agent.secret
-    metrics_endpoint = sakura_monitoring_suite_metric_storage.app.id
-    metrics_token    = sakura_monitoring_suite_metric_storage_access_key.agent.secret
+    hostname        = var.server_name
+    password        = var.server_password
+    ssh_public_key  = var.server_ssh_public_key_path != "" ? file(pathexpand(var.server_ssh_public_key_path)) : ""
+    private_ip_cidr = var.server_private_net_cidr
+    ssh_port        = var.server_ssh_port
   })
 }
 
