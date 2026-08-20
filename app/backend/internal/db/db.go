@@ -27,9 +27,10 @@ func New() *sql.DB {
 		log.Fatalf("db open: %v", err)
 	}
 
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
-	db.SetConnMaxLifetime(0)
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(25)
+	db.SetConnMaxLifetime(5 * time.Minute)
+	db.SetConnMaxIdleTime(1 * time.Minute)
 
 	for i := 0; i < 10; i++ {
 		if err = db.Ping(); err == nil {
@@ -90,8 +91,9 @@ func ResetAndMigrateWithDB(db *sql.DB) error {
 	return nil
 }
 
-// RunMigrationsWithDB applies all pending database migrations on the given *sql.DB instance.
-func RunMigrationsWithDB(db *sql.DB) error {
+// runMigrationsWithDB applies all pending database migrations on the given *sql.DB instance.
+// WARN: multiStatements = true must be set to the DSN for this function to work correctly.
+func runMigrationsWithDB(db *sql.DB) error {
 	m, err := newMigrateInstance(db)
 	if err != nil {
 		return err
@@ -129,5 +131,5 @@ func RunMigrations() error {
 		}
 	}()
 
-	return RunMigrationsWithDB(migrationDB)
+	return runMigrationsWithDB(migrationDB)
 }
