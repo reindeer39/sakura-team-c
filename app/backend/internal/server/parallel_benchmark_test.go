@@ -10,6 +10,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -19,6 +20,20 @@ import (
 	"sakuravel/internal/seed"
 	"sakuravel/internal/testutil"
 )
+
+type endpointStat struct {
+	name      string
+	method    string
+	path      string
+	count     int
+	errors    int
+	min       time.Duration
+	max       time.Duration
+	avg       time.Duration
+	p50       time.Duration
+	p95       time.Duration
+	durations []time.Duration
+}
 
 type parallelResult struct {
 	totalRequests int
@@ -32,6 +47,7 @@ type parallelResult struct {
 	p50Duration   time.Duration
 	p95Duration   time.Duration
 	p99Duration   time.Duration
+	endpointStats []endpointStat
 }
 
 type reqSpec struct {
@@ -42,6 +58,12 @@ type reqSpec struct {
 	body   []byte
 }
 
+type reqResult struct {
+	spec    reqSpec
+	elapsed time.Duration
+	err     bool
+}
+
 func runParallelBenchmark(
 	t *testing.T,
 	ts *httptest.Server,
@@ -50,9 +72,9 @@ func runParallelBenchmark(
 	totalRequests int,
 ) parallelResult {
 	specs := []reqSpec{
-		{name: "タイムライン(フォロー中)", method: "GET", path: "/posts?feed=following", isAuth: true},
-		{name: "タイムライン(最新)", method: "GET", path: "/posts?feed=latest", isAuth: true},
-		{name: "タイムライン(おすすめ)", method: "GET", path: "/posts?feed=recommended", isAuth: true},
+		{name: "フォロー中TL", method: "GET", path: "/posts?feed=following", isAuth: true},
+		{name: "最新TL", method: "GET", path: "/posts?feed=latest", isAuth: true},
+		{name: "おすすめTL", method: "GET", path: "/posts?feed=recommended", isAuth: true},
 		{name: "スレッド取得", method: "GET", path: "/posts/1/thread", isAuth: false},
 		{name: "投稿単体取得", method: "GET", path: "/posts/1", isAuth: false},
 		{name: "ユーザー投稿一覧", method: "GET", path: "/users/1/posts", isAuth: false},
@@ -70,8 +92,9 @@ func runParallelBenchmark(
 
 	var successCount int64
 	var errorCount int64
-	durations := make([]time.Duration, 0, totalRequests)
-	var durMu sync.Mutex
+	allDurations := make([]time.Duration, 0, totalRequests)
+	results := make([]reqResult, 0, totalRequests)
+	var resMu sync.Mutex
 
 	var wg sync.WaitGroup
 	start := time.Now()
@@ -98,6 +121,9 @@ func runParallelBenchmark(
 				req, err := http.NewRequest(spec.method, ts.URL+spec.path, bodyReader)
 				if err != nil {
 					atomic.AddInt64(&errorCount, 1)
+					resMu.Lock()
+					results = append(results, reqResult{spec: spec, elapsed: 0, err: true})
+					resMu.Unlock()
 					continue
 				}
 
@@ -109,7 +135,8 @@ func runParallelBenchmark(
 				resp, err := client.Do(req)
 				elapsed := time.Since(reqStart)
 
-				if err != nil || resp.StatusCode >= 400 {
+				isErr := err != nil || (resp != nil && resp.StatusCode >= 400)
+				if isErr {
 					atomic.AddInt64(&errorCount, 1)
 				} else {
 					atomic.AddInt64(&successCount, 1)
@@ -118,9 +145,10 @@ func runParallelBenchmark(
 					testutil.CloseBody(resp)
 				}
 
-				durMu.Lock()
-				durations = append(durations, elapsed)
-				durMu.Unlock()
+				resMu.Lock()
+				allDurations = append(allDurations, elapsed)
+				results = append(results, reqResult{spec: spec, elapsed: elapsed, err: isErr})
+				resMu.Unlock()
 			}
 		}()
 	}
@@ -128,12 +156,13 @@ func runParallelBenchmark(
 	wg.Wait()
 	totalDuration := time.Since(start)
 
-	sort.Slice(durations, func(i, j int) bool {
-		return durations[i] < durations[j]
+	// 全体統計の算出
+	sort.Slice(allDurations, func(i, j int) bool {
+		return allDurations[i] < allDurations[j]
 	})
 
 	var totalDurSum time.Duration
-	for _, d := range durations {
+	for _, d := range allDurations {
 		totalDurSum += d
 	}
 
@@ -145,17 +174,61 @@ func runParallelBenchmark(
 		rps:           float64(successCount) / totalDuration.Seconds(),
 	}
 
-	if len(durations) > 0 {
-		res.minDuration = durations[0]
-		res.maxDuration = durations[len(durations)-1]
-		res.avgDuration = totalDurSum / time.Duration(len(durations))
-		res.p50Duration = durations[int(float64(len(durations))*0.50)]
-		res.p95Duration = durations[int(float64(len(durations))*0.95)]
-		p99Idx := int(float64(len(durations)) * 0.99)
-		if p99Idx >= len(durations) {
-			p99Idx = len(durations) - 1
+	if len(allDurations) > 0 {
+		res.minDuration = allDurations[0]
+		res.maxDuration = allDurations[len(allDurations)-1]
+		res.avgDuration = totalDurSum / time.Duration(len(allDurations))
+		res.p50Duration = allDurations[int(float64(len(allDurations))*0.50)]
+		res.p95Duration = allDurations[int(float64(len(allDurations))*0.95)]
+		p99Idx := int(float64(len(allDurations)) * 0.99)
+		if p99Idx >= len(allDurations) {
+			p99Idx = len(allDurations) - 1
 		}
-		res.p99Duration = durations[p99Idx]
+		res.p99Duration = allDurations[p99Idx]
+	}
+
+	// エンドポイント別統計の算出
+	epMap := make(map[string]*endpointStat)
+	for _, s := range specs {
+		epMap[s.name] = &endpointStat{
+			name:      s.name,
+			method:    s.method,
+			path:      s.path,
+			durations: make([]time.Duration, 0),
+		}
+	}
+
+	for _, r := range results {
+		stat, ok := epMap[r.spec.name]
+		if !ok {
+			continue
+		}
+		stat.count++
+		if r.err {
+			stat.errors++
+		}
+		stat.durations = append(stat.durations, r.elapsed)
+	}
+
+	for _, s := range specs {
+		stat := epMap[s.name]
+		if len(stat.durations) == 0 {
+			continue
+		}
+		sort.Slice(stat.durations, func(i, j int) bool {
+			return stat.durations[i] < stat.durations[j]
+		})
+
+		var sum time.Duration
+		for _, d := range stat.durations {
+			sum += d
+		}
+		stat.min = stat.durations[0]
+		stat.max = stat.durations[len(stat.durations)-1]
+		stat.avg = sum / time.Duration(len(stat.durations))
+		stat.p50 = stat.durations[int(float64(len(stat.durations))*0.50)]
+		stat.p95 = stat.durations[int(float64(len(stat.durations))*0.95)]
+		res.endpointStats = append(res.endpointStats, *stat)
 	}
 
 	return res
@@ -231,7 +304,7 @@ func TestBenchmark_ParallelAccess(t *testing.T) {
 
 	res := runParallelBenchmark(t, ts, sessionCookie, concurrency, totalRequests)
 
-	// 結果出力
+	// コンソール出力
 	fmt.Println()
 	fmt.Printf("=========================================================================================================\n")
 	fmt.Printf(" [並行アクセスベンチマーク結果 (appdb.New アプリ設定使用)] 並行度: %d, 総リクエスト数: %d\n", concurrency, totalRequests)
@@ -249,4 +322,89 @@ func TestBenchmark_ParallelAccess(t *testing.T) {
 		formatDuration(res.totalDuration),
 	)
 	fmt.Printf("=========================================================================================================\n")
+
+	fmt.Println()
+	fmt.Printf("%-24s | %-6s | %-28s | %-6s | %-8s | %-8s | %-8s | %-8s | %-8s\n",
+		"Endpoint Name", "Method", "Path", "Reqs", "Errors", "Min", "Avg", "P50", "P95")
+	fmt.Println(strings.Repeat("-", 125))
+	for _, ep := range res.endpointStats {
+		fmt.Printf("%-24s | %-6s | %-28s | %-6d | %-8d | %-8s | %-8s | %-8s | %-8s\n",
+			ep.name,
+			ep.method,
+			ep.path,
+			ep.count,
+			ep.errors,
+			formatDuration(ep.min),
+			formatDuration(ep.avg),
+			formatDuration(ep.p50),
+			formatDuration(ep.p95),
+		)
+	}
+	fmt.Println(strings.Repeat("-", 125))
+
+	// GitHub Actions Step Summary へ出力
+	writeParallelStepSummary(res, scale, concurrency, totalRequests, seedRes.Duration)
+}
+
+func writeParallelStepSummary(
+	res parallelResult,
+	scale int,
+	concurrency int,
+	totalRequests int,
+	seedDuration time.Duration,
+) {
+	summaryPath := os.Getenv("GITHUB_STEP_SUMMARY")
+	if summaryPath == "" {
+		summaryPath = os.Getenv("BENCH_SUMMARY_FILE")
+	}
+	if summaryPath == "" {
+		return
+	}
+
+	var md strings.Builder
+	fmt.Fprintf(&md, "## Parallel Benchmark Results (appdb.New)\n\n")
+	fmt.Fprintf(&md, "- **Scale**: `%d` (Seed Duration: `%.2fs`)\n", scale, seedDuration.Seconds())
+	fmt.Fprintf(&md, "- **Concurrency**: `%d` workers\n", concurrency)
+	fmt.Fprintf(&md, "- **Total Requests**: `%d` requests\n", totalRequests)
+	fmt.Fprintf(&md, "- **Throughput**: **`%.2f req/s`** (Total Time: `%s`)\n", res.rps, formatDuration(res.totalDuration))
+	fmt.Fprintf(&md, "- **Success / Errors**: `%d / %d`\n\n", res.successCount, res.errorCount)
+
+	fmt.Fprintf(&md, "### Overall Latency Summary\n\n")
+	fmt.Fprintf(&md, "| Metric | Value |\n")
+	fmt.Fprintf(&md, "| :--- | :---: |\n")
+	fmt.Fprintf(&md, "| Min Latency | `%s` |\n", formatDuration(res.minDuration))
+	fmt.Fprintf(&md, "| Avg Latency | `%s` |\n", formatDuration(res.avgDuration))
+	fmt.Fprintf(&md, "| P50 Latency | `%s` |\n", formatDuration(res.p50Duration))
+	fmt.Fprintf(&md, "| P95 Latency | `%s` |\n", formatDuration(res.p95Duration))
+	fmt.Fprintf(&md, "| P99 Latency | `%s` |\n", formatDuration(res.p99Duration))
+	fmt.Fprintf(&md, "| Max Latency | `%s` |\n\n", formatDuration(res.maxDuration))
+
+	fmt.Fprintf(&md, "### Endpoint Breakdown\n\n")
+	fmt.Fprintf(&md, "| Endpoint Name | Method | Path | Requests | Errors | Min | Avg | P50 | P95 |\n")
+	fmt.Fprintf(&md, "| :--- | :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: |\n")
+	for _, ep := range res.endpointStats {
+		fmt.Fprintf(&md, "| %s | `%s` | `%s` | `%d` | `%d` | %s | %s | %s | %s |\n",
+			ep.name,
+			ep.method,
+			ep.path,
+			ep.count,
+			ep.errors,
+			formatDuration(ep.min),
+			formatDuration(ep.avg),
+			formatDuration(ep.p50),
+			formatDuration(ep.p95),
+		)
+	}
+	md.WriteString("\n")
+
+	f, err := os.OpenFile(summaryPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Printf("Warning: failed to write to step summary file (%s): %v\n", summaryPath, err)
+		return
+	}
+	defer f.Close()
+
+	if _, err := f.WriteString(md.String()); err != nil {
+		fmt.Printf("Warning: failed to append to step summary file (%s): %v\n", summaryPath, err)
+	}
 }
