@@ -8,12 +8,16 @@ import (
 
 	appdb "sakuravel/internal/db"
 	"sakuravel/internal/handler"
+	"sakuravel/internal/logger"
 	"sakuravel/internal/middleware"
 	"sakuravel/internal/realtime"
 	"sakuravel/internal/server"
 )
 
 func main() {
+	cleanup := logger.SetupFromEnv()
+	defer cleanup()
+
 	if err := appdb.RunMigrations(); err != nil {
 		slog.Error("Failed to run migrations", "error", err)
 		os.Exit(1)
