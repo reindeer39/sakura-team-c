@@ -91,18 +91,11 @@ func TestNewLogger_OtlpInit(t *testing.T) {
 }
 
 func TestConfigFromEnv(t *testing.T) {
-	os.Setenv("LOG_OUTPUT", "stderr")
-	os.Setenv("LOG_FORMAT", "json")
-	os.Setenv("LOG_LEVEL", "warn")
-	os.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "custom:4317")
-	os.Setenv("OTEL_SERVICE_NAME", "custom-service")
-	defer func() {
-		os.Unsetenv("LOG_OUTPUT")
-		os.Unsetenv("LOG_FORMAT")
-		os.Unsetenv("LOG_LEVEL")
-		os.Unsetenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-		os.Unsetenv("OTEL_SERVICE_NAME")
-	}()
+	t.Setenv("LOG_OUTPUT", "stderr")
+	t.Setenv("LOG_FORMAT", "json")
+	t.Setenv("LOG_LEVEL", "warn")
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "custom:4317")
+	t.Setenv("OTEL_SERVICE_NAME", "custom-service")
 
 	cfg := ConfigFromEnv()
 	if cfg.Output != "stderr" {

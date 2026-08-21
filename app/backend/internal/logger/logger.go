@@ -91,7 +91,7 @@ func NewLogger(cfg Config) (*slog.Logger, func(), error) {
 	}
 
 	var writer io.Writer
-	var cleanup func() = func() {}
+	cleanup := func() {}
 
 	switch outputLower {
 	case "stdout", "":
