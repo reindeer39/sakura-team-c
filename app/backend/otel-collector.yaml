@@ -1,4 +1,11 @@
 receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
   hostmetrics:
     collection_interval: 30s
     root_path: /hostfs
@@ -63,6 +70,7 @@ service:
   pipelines:
     metrics:
       receivers:
+        - otlp
         - hostmetrics
       processors:
         - resourcedetection
@@ -71,6 +79,7 @@ service:
         - sacloud
     logs:
       receivers:
+        - otlp
         - filelog/containers
         - filelog/mysql
         - filelog/system

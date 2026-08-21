@@ -10,6 +10,11 @@ services:
       # ブラウザから見たフロントエンドのオリジン（Caddy 経由で同一オリジン）
       - ALLOWED_ORIGIN=https://${APP_DOMAIN:?APP_DOMAIN is required}
       - COOKIE_SECURE=true   # HTTPS 配信時
+      - LOG_OUTPUT=${LOG_OUTPUT:-otlp}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - LOG_FORMAT=${LOG_FORMAT:-json}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
+      - OTEL_SERVICE_NAME=sakuravel-api
     depends_on:
       db:
         condition: service_healthy
