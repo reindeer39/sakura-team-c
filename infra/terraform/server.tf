@@ -2,8 +2,9 @@
 # サーバー
 ########################################
 
+
 data "sakura_archive" "ubuntu" {
-  name = "Ubuntu Server 24.04.2 LTS 64bit (cloudimg)"
+  name = "Ubuntu Server 22.04.5 LTS 64bit"
   zone = var.zone
 }
 
